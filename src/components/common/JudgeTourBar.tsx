@@ -12,7 +12,13 @@ import {
 import { useApp } from '@/context/AppContext';
 
 export const JudgeTourBar: React.FC = () => {
-  const { activeView, navigateTo, triggerJudgeDemoFlow } = useApp();
+  const {
+    activeView,
+    navigateTo,
+    triggerJudgeDemoFlow,
+    backendStatus,
+    checkBackendConnection,
+  } = useApp();
   const [isOpen, setIsOpen] = useState(true);
   const [isDismissed, setIsDismissed] = useState(false);
 
@@ -111,8 +117,29 @@ export const JudgeTourBar: React.FC = () => {
               </button>
             </div>
 
-            <div className="pt-1 flex items-center justify-between text-[10px] text-slate-400 border-t border-slate-800/60">
-              <span>PathBridge 2.0 Prototype v2.4</span>
+            <div className="pt-2 flex items-center justify-between text-[10px] text-slate-400 border-t border-slate-800/60">
+              <div className="flex items-center gap-1.5">
+                {backendStatus === 'connected' ? (
+                  <span className="flex items-center gap-1 text-emerald-400 font-medium">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                    FastAPI Live (:8000)
+                  </span>
+                ) : backendStatus === 'checking' ? (
+                  <span className="flex items-center gap-1 text-blue-400 font-medium">
+                    <span className="w-1.5 h-1.5 rounded-full bg-blue-400 animate-ping" />
+                    Connecting API...
+                  </span>
+                ) : (
+                  <button
+                    onClick={() => checkBackendConnection()}
+                    className="flex items-center gap-1 text-amber-400 hover:underline"
+                    title="Backend not responding on http://localhost:8000. Click to retry."
+                  >
+                    <span className="w-1.5 h-1.5 rounded-full bg-amber-400" />
+                    Demo Mode (Offline)
+                  </button>
+                )}
+              </div>
               <button
                 onClick={() => navigateTo('landing')}
                 className="text-blue-400 hover:underline"

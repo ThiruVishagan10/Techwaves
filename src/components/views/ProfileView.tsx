@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { useState, useRef } from 'react';
 import {
   Sparkles,
   Briefcase,
@@ -9,11 +9,50 @@ import {
   CheckCircle2,
   ArrowRight,
   Cpu,
+  Upload,
+  FileText,
+  RotateCw,
+  Send,
 } from 'lucide-react';
 import { useApp } from '@/context/AppContext';
 
 export const ProfileView: React.FC = () => {
-  const { user, triggerProfileAnalysis, isAnalyzingProfile, navigateTo } = useApp();
+  const {
+    user,
+    triggerProfileAnalysis,
+    uploadResumeFile,
+    analyzeResumeText,
+    isAnalyzingProfile,
+    navigateTo,
+  } = useApp();
+
+  const [uploadMode, setUploadMode] = useState<'file' | 'text'>('file');
+  const [pastedText, setPastedText] = useState('');
+  const [dragOver, setDragOver] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      await uploadResumeFile(file);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  };
+
+  const handleDrop = async (e: React.DragEvent) => {
+    e.preventDefault();
+    setDragOver(false);
+    const file = e.dataTransfer.files?.[0];
+    if (file) {
+      await uploadResumeFile(file);
+    }
+  };
+
+  const handleTextSubmit = async () => {
+    if (!pastedText.trim()) return;
+    await analyzeResumeText(pastedText);
+    setPastedText('');
+  };
 
   return (
     <div className="p-6 lg:p-8 space-y-8 max-w-7xl mx-auto">
@@ -133,6 +172,122 @@ export const ProfileView: React.FC = () => {
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
         {/* Left Column: Education, Skills, Projects, Experience (8 Cols) */}
         <div className="lg:col-span-8 space-y-8">
+          {/* AI Resume & Profile Analyzer (POST /api/profiles/analyze) */}
+          <section className="p-6 rounded-2xl bg-gradient-to-br from-[#0F172A] to-[#111C38] border border-blue-500/30 space-y-4 shadow-xl">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 border-b border-slate-800">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-lg bg-blue-600/20 border border-blue-500/40 text-blue-400 flex items-center justify-center font-bold text-xs">
+                  <Sparkles className="w-4 h-4" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-bold text-white">Gemini Resume & Profile Analyzer</h3>
+                  <p className="text-[11px] text-slate-400">
+                    Live endpoint: <code className="text-blue-400 font-mono">POST /api/profiles/analyze</code>
+                  </p>
+                </div>
+              </div>
+
+              {/* Mode Toggle */}
+              <div className="flex items-center p-1 rounded-xl bg-slate-900 border border-slate-800 text-xs">
+                <button
+                  onClick={() => setUploadMode('file')}
+                  className={`px-3 py-1 rounded-lg transition-colors font-medium flex items-center gap-1.5 ${
+                    uploadMode === 'file' ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-400 hover:text-white'
+                  }`}
+                >
+                  <Upload className="w-3.5 h-3.5" />
+                  <span>Upload PDF</span>
+                </button>
+                <button
+                  onClick={() => setUploadMode('text')}
+                  className={`px-3 py-1 rounded-lg transition-colors font-medium flex items-center gap-1.5 ${
+                    uploadMode === 'text' ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-400 hover:text-white'
+                  }`}
+                >
+                  <FileText className="w-3.5 h-3.5" />
+                  <span>Paste Text</span>
+                </button>
+              </div>
+            </div>
+
+            {uploadMode === 'file' ? (
+              <div
+                onDragOver={(e) => {
+                  e.preventDefault();
+                  setDragOver(true);
+                }}
+                onDragLeave={() => setDragOver(false)}
+                onDrop={handleDrop}
+                onClick={() => fileInputRef.current?.click()}
+                className={`p-6 rounded-xl border-2 border-dashed transition-all cursor-pointer text-center flex flex-col items-center justify-center gap-3 ${
+                  dragOver
+                    ? 'border-blue-500 bg-blue-500/10'
+                    : 'border-slate-700 hover:border-blue-500/60 bg-slate-900/50 hover:bg-slate-900/80'
+                }`}
+              >
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept=".pdf"
+                  className="hidden"
+                  onChange={handleFileChange}
+                />
+                <div className="w-12 h-12 rounded-xl bg-blue-600/15 border border-blue-500/30 flex items-center justify-center text-blue-400">
+                  {isAnalyzingProfile ? (
+                    <RotateCw className="w-6 h-6 animate-spin text-blue-400" />
+                  ) : (
+                    <Upload className="w-6 h-6" />
+                  )}
+                </div>
+                <div>
+                  <div className="text-xs font-bold text-white">
+                    {isAnalyzingProfile ? 'Gemini is parsing resume...' : 'Click to select or drag & drop Resume PDF'}
+                  </div>
+                  <p className="text-[11px] text-slate-400 mt-0.5">
+                    Extracts candidate name, degree, skills taxonomy, experience, and projects into structured vectors.
+                  </p>
+                </div>
+                <div className="flex items-center gap-2 text-[10px] text-blue-400 font-mono">
+                  <span>Supported format: .pdf</span>
+                  <span>·</span>
+                  <span>Max size: 10MB</span>
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                <textarea
+                  value={pastedText}
+                  onChange={(e) => setPastedText(e.target.value)}
+                  placeholder="Paste resume content, GitHub profile readme, or project description here..."
+                  rows={4}
+                  className="w-full bg-slate-900/90 border border-slate-700 rounded-xl p-3 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-blue-500 font-mono leading-relaxed"
+                />
+                <div className="flex items-center justify-between">
+                  <span className="text-[11px] text-slate-400">
+                    Sends to Gemini for instant NER extraction and competency mapping
+                  </span>
+                  <button
+                    onClick={handleTextSubmit}
+                    disabled={isAnalyzingProfile || !pastedText.trim()}
+                    className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white text-xs font-bold shadow-md transition-all flex items-center gap-1.5"
+                  >
+                    {isAnalyzingProfile ? (
+                      <>
+                        <RotateCw className="w-3.5 h-3.5 animate-spin" />
+                        <span>Parsing...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Send className="w-3.5 h-3.5" />
+                        <span>Extract with Gemini</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+              </div>
+            )}
+          </section>
+
           {/* 1. Skills Taxonomy */}
           <section className="p-6 rounded-2xl bg-[#0F172A] border border-slate-800 space-y-5">
             <div className="flex items-center justify-between pb-3 border-b border-slate-800">

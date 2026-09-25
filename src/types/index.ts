@@ -1,8 +1,10 @@
 export type VerificationStatus = 'verified' | 'needs_review' | 'suspicious';
 export type VerificationConfidence = 'HIGH' | 'MEDIUM' | 'LOW';
-export type WorkMode = 'Remote' | 'Hybrid' | 'On-site';
+export type WorkMode = 'Remote' | 'Hybrid' | 'On-site' | 'In-Office';
 export type OpportunityType = 'Internship' | 'Full-time' | 'Part-time';
-export type ApplicationStage = 'saved' | 'applied' | 'interview' | 'offer';
+export type ApplicationStage = 'saved' | 'applied' | 'interview' | 'offer' | 'rejected';
+
+export type BackendStatus = 'connected' | 'disconnected' | 'checking';
 
 export interface VerificationCheck {
   id: string;
@@ -10,6 +12,23 @@ export interface VerificationCheck {
   status: 'pass' | 'warning' | 'fail';
   detail: string;
   timestamp?: string;
+}
+
+export interface VerificationAnalysisResult {
+  verificationStatus: VerificationStatus;
+  confidenceScore: number;
+  trustSignals: string[];
+  riskFactors: string[];
+  checks?: VerificationCheck[];
+  summary?: string;
+}
+
+export interface MatchAnalysisResult {
+  matchScore: number;
+  skillsScore?: number;
+  matchedSkills: string[];
+  skillGaps: string[];
+  explanation: string;
 }
 
 export interface MatchBreakdown {
@@ -52,12 +71,14 @@ export interface Opportunity {
   postedDaysAgo: number;
   isSaved?: boolean;
   applicationStatus?: ApplicationStage | 'none';
+  applicationId?: string;
   appliedDate?: string;
   interviewStage?: string;
   suspiciousWarning?: string;
 }
 
 export interface UserProfile {
+  id?: string;
   name: string;
   email: string;
   avatarUrl: string;
@@ -105,3 +126,4 @@ export type ActiveView =
   | 'applications'
   | 'profile'
   | 'saved';
+

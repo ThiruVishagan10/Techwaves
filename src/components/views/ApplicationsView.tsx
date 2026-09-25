@@ -6,12 +6,13 @@ import {
   Table as TableIcon,
   Plus,
   ChevronRight,
+  Trash2,
 } from 'lucide-react';
 import { useApp } from '@/context/AppContext';
 import { ApplicationStage } from '@/types';
 
 export const ApplicationsView: React.FC = () => {
-  const { opportunities, updateApplicationStatus, navigateTo } = useApp();
+  const { opportunities, updateApplicationStatus, deleteApplication, navigateTo } = useApp();
   const [viewType, setViewType] = useState<'kanban' | 'table'>('kanban');
 
   // Columns definition
@@ -44,6 +45,12 @@ export const ApplicationsView: React.FC = () => {
       label: 'Offer',
       accentColor: 'border-emerald-500/40',
       badgeBg: 'bg-emerald-500/20 text-emerald-300',
+    },
+    {
+      id: 'rejected',
+      label: 'Archived',
+      accentColor: 'border-rose-500/40',
+      badgeBg: 'bg-rose-950/40 text-rose-300',
     },
   ];
 
@@ -162,6 +169,14 @@ export const ApplicationsView: React.FC = () => {
                                 </h4>
                               </div>
                             </div>
+
+                            <button
+                              onClick={() => deleteApplication(opp.id)}
+                              title="Remove application"
+                              className="text-slate-600 hover:text-rose-400 p-1 rounded transition-colors opacity-0 group-hover:opacity-100"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
                           </div>
 
                           <div className="flex items-center justify-between text-[11px] text-slate-400">
@@ -216,6 +231,17 @@ export const ApplicationsView: React.FC = () => {
                                 title="Move to Offer"
                               >
                                 <span>Offer!</span>
+                                <ChevronRight className="w-3 h-3" />
+                              </button>
+                            )}
+
+                            {col.id === 'rejected' && (
+                              <button
+                                onClick={() => updateApplicationStatus(opp.id, 'saved')}
+                                className="text-slate-400 hover:text-white flex items-center gap-1"
+                                title="Reopen as Saved"
+                              >
+                                <span>Restore</span>
                                 <ChevronRight className="w-3 h-3" />
                               </button>
                             )}
@@ -289,6 +315,7 @@ export const ApplicationsView: React.FC = () => {
                         <option value="applied">Applied</option>
                         <option value="interview">Interview</option>
                         <option value="offer">Offer</option>
+                        <option value="rejected">Archived</option>
                       </select>
                     </td>
 
@@ -301,12 +328,21 @@ export const ApplicationsView: React.FC = () => {
                     <td className="py-3.5 px-4 text-slate-400">{opp.location}</td>
 
                     <td className="py-3.5 px-4 text-right">
-                      <button
-                        onClick={() => navigateTo('opportunity-details', opp.id)}
-                        className="text-xs font-semibold text-blue-400 hover:text-blue-300"
-                      >
-                        View Details
-                      </button>
+                      <div className="flex items-center justify-end gap-3">
+                        <button
+                          onClick={() => navigateTo('opportunity-details', opp.id)}
+                          className="text-xs font-semibold text-blue-400 hover:text-blue-300"
+                        >
+                          View Details
+                        </button>
+                        <button
+                          onClick={() => deleteApplication(opp.id)}
+                          title="Remove application"
+                          className="text-slate-500 hover:text-rose-400 p-1 rounded transition-colors"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}

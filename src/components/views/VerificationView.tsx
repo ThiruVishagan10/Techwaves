@@ -14,9 +14,10 @@ import {
   RotateCw,
 } from 'lucide-react';
 import { useApp } from '@/context/AppContext';
+import { VerificationAnalysisResult } from '@/types';
 
 export const VerificationView: React.FC = () => {
-  const { navigateTo } = useApp();
+  const { navigateTo, runVerificationAnalysis } = useApp();
 
   // Interactive Sandbox state
   const [inspectUrl, setInspectUrl] = useState(
@@ -24,14 +25,42 @@ export const VerificationView: React.FC = () => {
   );
   const [activeScanScenario, setActiveScanScenario] = useState<'verified' | 'review' | 'scam'>('verified');
   const [isScanning, setIsScanning] = useState(false);
+  const [liveScanResult, setLiveScanResult] = useState<VerificationAnalysisResult | null>(null);
 
-  const handleRunScan = (scenario: 'verified' | 'review' | 'scam', url: string) => {
+  const handleRunScan = async (scenario: 'verified' | 'review' | 'scam', url: string) => {
     setActiveScanScenario(scenario);
     setInspectUrl(url);
     setIsScanning(true);
-    setTimeout(() => {
+    try {
+      const oppId =
+        scenario === 'verified'
+          ? 'opp-msft-aiml'
+          : scenario === 'review'
+          ? 'opp-novalabs-ml'
+          : 'opp-cryptoapex-scam';
+
+      const company =
+        scenario === 'verified'
+          ? 'Microsoft'
+          : scenario === 'review'
+          ? 'NovaLabs AI'
+          : 'CryptoApex Labs';
+
+      const res = await runVerificationAnalysis({
+        opportunity_id: oppId,
+        url,
+        company,
+      });
+
+      if (res) {
+        setLiveScanResult(res);
+        if (res.verificationStatus === 'verified') setActiveScanScenario('verified');
+        else if (res.verificationStatus === 'needs_review') setActiveScanScenario('review');
+        else if (res.verificationStatus === 'suspicious') setActiveScanScenario('scam');
+      }
+    } finally {
       setIsScanning(false);
-    }, 700);
+    }
   };
 
   return (
@@ -229,6 +258,34 @@ export const VerificationView: React.FC = () => {
                 <span>Inspect Flagged Entry</span>
                 <ArrowRight className="w-3.5 h-3.5" />
               </button>
+            </div>
+          )}
+
+          {/* Dynamic Trust Signals & Risk Factors from Live Backend */}
+          {liveScanResult && (liveScanResult.trustSignals.length > 0 || liveScanResult.riskFactors.length > 0) && (
+            <div className="mt-3 p-3 rounded-xl bg-slate-900/80 border border-slate-800 space-y-2">
+              <div className="text-[11px] font-bold text-slate-300 flex items-center justify-between">
+                <span>Live Verification Breakdown:</span>
+                <span className="font-mono text-blue-400">Score: {liveScanResult.confidenceScore}/100</span>
+              </div>
+              <div className="flex flex-wrap gap-1.5">
+                {liveScanResult.trustSignals.map((sig, i) => (
+                  <span
+                    key={`sig-${i}`}
+                    className="px-2.5 py-0.5 rounded-lg bg-emerald-950/40 text-emerald-300 border border-emerald-500/30 text-[10px] font-medium"
+                  >
+                    ✓ {sig}
+                  </span>
+                ))}
+                {liveScanResult.riskFactors.map((risk, i) => (
+                  <span
+                    key={`risk-${i}`}
+                    className="px-2.5 py-0.5 rounded-lg bg-rose-950/40 text-rose-300 border border-rose-500/30 text-[10px] font-medium"
+                  >
+                    ⚠ {risk}
+                  </span>
+                ))}
+              </div>
             </div>
           )}
         </div>
