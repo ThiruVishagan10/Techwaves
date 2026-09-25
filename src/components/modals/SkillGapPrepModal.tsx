@@ -3,13 +3,8 @@
 import React, { useState } from 'react';
 import {
   X,
-  BookOpen,
-  CheckCircle2,
   Clock,
   Sparkles,
-  ArrowRight,
-  ExternalLink,
-  Code2,
   Lightbulb,
 } from 'lucide-react';
 import { useApp } from '@/context/AppContext';
@@ -20,7 +15,6 @@ export const SkillGapPrepModal: React.FC = () => {
     closePrepModal,
     prepTargetOpportunity,
     selectedOpportunity,
-    user,
   } = useApp();
 
   const opp = prepTargetOpportunity || selectedOpportunity;

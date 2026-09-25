@@ -13,14 +13,9 @@ import {
   AlertTriangle,
   ExternalLink,
   Bookmark,
-  Share2,
   BookOpen,
   Check,
-  HelpCircle,
   ShieldAlert,
-  ArrowUpRight,
-  Briefcase,
-  FileCheck,
   Info,
 } from 'lucide-react';
 import { useApp } from '@/context/AppContext';
@@ -32,7 +27,6 @@ export const OpportunityDetailsView: React.FC = () => {
     toggleSave,
     openApplyModal,
     openPrepModal,
-    user,
   } = useApp();
 
   return (

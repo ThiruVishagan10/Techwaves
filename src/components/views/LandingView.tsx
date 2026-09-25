@@ -7,16 +7,12 @@ import {
   Sparkles,
   ArrowRight,
   CheckCircle2,
-  AlertTriangle,
-  Lock,
   Layers,
-  ChevronRight,
   TrendingUp,
   Cpu,
   GraduationCap,
   Users,
   Search,
-  FileCheck,
 } from 'lucide-react';
 import { useApp } from '@/context/AppContext';
 

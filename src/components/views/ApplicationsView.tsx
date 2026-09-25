@@ -2,23 +2,13 @@
 
 import React, { useState } from 'react';
 import {
-  Briefcase,
   Columns,
   Table as TableIcon,
   Plus,
-  ArrowRight,
-  MoreVertical,
-  Calendar,
-  Sparkles,
-  ShieldCheck,
-  CheckCircle2,
-  Clock,
-  ExternalLink,
   ChevronRight,
-  MoveRight,
 } from 'lucide-react';
 import { useApp } from '@/context/AppContext';
-import { ApplicationStage, Opportunity } from '@/types';
+import { ApplicationStage } from '@/types';
 
 export const ApplicationsView: React.FC = () => {
   const { opportunities, updateApplicationStatus, navigateTo } = useApp();

@@ -6,12 +6,7 @@ import {
   Bell,
   Sparkles,
   ChevronDown,
-  ShieldCheck,
-  Briefcase,
-  AlertTriangle,
   Info,
-  CheckCircle2,
-  SlidersHorizontal,
 } from 'lucide-react';
 import { useApp } from '@/context/AppContext';
 

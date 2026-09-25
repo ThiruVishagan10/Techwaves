@@ -8,13 +8,11 @@ import {
   X,
   ArrowRight,
   ShieldCheck,
-  CheckCircle2,
-  HelpCircle,
 } from 'lucide-react';
 import { useApp } from '@/context/AppContext';
 
 export const JudgeTourBar: React.FC = () => {
-  const { activeView, navigateTo, triggerJudgeDemoFlow, openApplyModal, openPrepModal } = useApp();
+  const { activeView, navigateTo, triggerJudgeDemoFlow } = useApp();
   const [isOpen, setIsOpen] = useState(true);
   const [isDismissed, setIsDismissed] = useState(false);
 

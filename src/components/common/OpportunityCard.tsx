@@ -9,7 +9,6 @@ import {
   AlertTriangle,
   Bookmark,
   ArrowRight,
-  ExternalLink,
   ShieldAlert,
   Sparkles,
 } from 'lucide-react';

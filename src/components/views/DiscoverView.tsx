@@ -3,25 +3,16 @@
 import React, { useMemo, useState } from 'react';
 import {
   Search,
-  Filter,
-  SlidersHorizontal,
   ShieldCheck,
-  Sparkles,
-  MapPin,
-  Calendar,
-  DollarSign,
   Grid,
   List,
   RotateCcw,
-  CheckCircle2,
   X,
   Bookmark,
   ArrowRight,
-  ExternalLink,
 } from 'lucide-react';
 import { useApp } from '@/context/AppContext';
 import { OpportunityCard } from '@/components/common/OpportunityCard';
-import { Opportunity } from '@/types';
 
 export const DiscoverView: React.FC = () => {
   const {
@@ -289,7 +280,15 @@ export const DiscoverView: React.FC = () => {
             <span className="text-slate-400">Sort by:</span>
             <select
               value={sortBy}
-              onChange={(e) => setSortBy(e.target.value as any)}
+              onChange={(e) =>
+                setSortBy(
+                  e.target.value as
+                    | 'recommended'
+                    | 'highest-match'
+                    | 'newest'
+                    | 'deadline'
+                )
+              }
               className="bg-slate-900 border border-slate-800 rounded-lg py-1.5 px-2.5 text-xs text-slate-200 focus:outline-none focus:border-blue-500"
             >
               <option value="recommended">Recommended</option>

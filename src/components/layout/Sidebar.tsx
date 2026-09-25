@@ -8,11 +8,9 @@ import {
   UserCheck,
   Bookmark,
   ShieldCheck,
-  Settings,
   LayoutDashboard,
   ExternalLink,
   ChevronRight,
-  ShieldAlert,
   ArrowUpRight,
 } from 'lucide-react';
 import { useApp } from '@/context/AppContext';

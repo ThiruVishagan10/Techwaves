@@ -9,17 +9,18 @@ export const AIAnalysisModal: React.FC = () => {
   const [step, setStep] = useState(1);
 
   useEffect(() => {
-    if (isAnalyzingProfile) {
-      setStep(1);
-      const t1 = setTimeout(() => setStep(2), 600);
-      const t2 = setTimeout(() => setStep(3), 1300);
-      const t3 = setTimeout(() => setStep(4), 1900);
-      return () => {
-        clearTimeout(t1);
-        clearTimeout(t2);
-        clearTimeout(t3);
-      };
-    }
+    if (!isAnalyzingProfile) return;
+    
+    const t0 = setTimeout(() => setStep(1), 0);
+    const t1 = setTimeout(() => setStep(2), 600);
+    const t2 = setTimeout(() => setStep(3), 1300);
+    const t3 = setTimeout(() => setStep(4), 1900);
+    return () => {
+      clearTimeout(t0);
+      clearTimeout(t1);
+      clearTimeout(t2);
+      clearTimeout(t3);
+    };
   }, [isAnalyzingProfile]);
 
   if (!isAnalyzingProfile) return null;

@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { Bookmark, Compass, ArrowRight } from 'lucide-react';
+import { Bookmark, Compass } from 'lucide-react';
 import { useApp } from '@/context/AppContext';
 import { OpportunityCard } from '@/components/common/OpportunityCard';
 

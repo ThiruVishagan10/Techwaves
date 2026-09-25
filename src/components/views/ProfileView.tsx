@@ -2,23 +2,13 @@
 
 import React from 'react';
 import {
-  UserCheck,
   Sparkles,
-  GraduationCap,
   Briefcase,
   Code2,
   FolderGit2,
-  Sliders,
   CheckCircle2,
   ArrowRight,
-  ExternalLink,
-  Plus,
-  RefreshCw,
   Cpu,
-  Layers,
-  MapPin,
-  Clock,
-  Compass,
 } from 'lucide-react';
 import { useApp } from '@/context/AppContext';
 

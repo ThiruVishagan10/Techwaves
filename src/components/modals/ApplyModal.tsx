@@ -6,11 +6,8 @@ import {
   ExternalLink,
   ShieldCheck,
   CheckCircle2,
-  AlertTriangle,
   Sparkles,
-  ArrowRight,
   Briefcase,
-  FileText,
 } from 'lucide-react';
 import { useApp } from '@/context/AppContext';
 

@@ -8,15 +8,10 @@ import {
   Clock,
   DollarSign,
   Calendar,
-  CheckCircle2,
   ArrowRight,
   Bookmark,
-  SlidersHorizontal,
   ChevronRight,
-  TrendingUp,
   Cpu,
-  Layers,
-  Info,
 } from 'lucide-react';
 import { useApp } from '@/context/AppContext';
 
@@ -26,7 +21,6 @@ export const RecommendationsView: React.FC = () => {
     user,
     navigateTo,
     toggleSave,
-    openApplyModal,
   } = useApp();
 
   const [activePreferenceFocus, setActivePreferenceFocus] = useState<'all' | 'ai' | 'data' | 'remote'>('all');

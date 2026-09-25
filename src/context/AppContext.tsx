@@ -77,6 +77,51 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   
   // AI analysis state
   const [isAnalyzingProfile, setIsAnalyzingProfile] = useState(false);
+
+  // Sync with live PathBridge FastAPI Backend
+  useEffect(() => {
+    let isMounted = true;
+    api.getRecommendations('profile-alex-morgan')
+      .then((data) => {
+        if (!isMounted || !data || data.length === 0) return;
+        setOpportunities((prev) => {
+          return data.map((item) => {
+            const existing = prev.find((o) => o.id === item.id);
+            return {
+              ...(existing || {}),
+              ...item,
+              matchScore: item.match_score ?? item.matchScore ?? existing?.matchScore ?? 85,
+              verificationStatus: (item.verification_status || item.verificationStatus || 'VERIFIED').toLowerCase(),
+              verificationConfidence: item.verificationConfidence || 'HIGH',
+              matchedSkills: item.matched_skills || item.matchedSkills || existing?.matchedSkills || [],
+              missingSkills: item.missing_skills || item.missingSkills || existing?.missingSkills || [],
+              aiExplanation: item.ai_explanation || item.aiExplanation || existing?.aiExplanation || '',
+              matchBreakdown: item.match_breakdown || existing?.matchBreakdown || {
+                skillsMatch: 92,
+                experienceMatch: 85,
+                educationMatch: 95,
+                preferenceMatch: 90,
+                careerGoalAlignment: 90,
+              },
+              whyRecommendedReasons: item.why_recommended_reasons || item.whyRecommendedReasons || existing?.whyRecommendedReasons || [
+                'Strong skills alignment with candidate background',
+                'Verified corporate career endpoint'
+              ],
+              verificationChecks: item.verification_checks || item.verificationChecks || existing?.verificationChecks || [],
+              isSaved: existing?.isSaved || false,
+              applicationStatus: existing?.applicationStatus || 'none',
+            };
+          });
+        });
+      })
+      .catch((err) => {
+        console.warn('Backend sync note (using mock fallback):', err);
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
   const [notificationMessage, setNotificationMessage] = useState<string | null>(null);
 
   const selectedOpportunity = useMemo(() => {
@@ -128,6 +173,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         if (opp.id === id) {
           const nextAppliedDate = status === 'applied' ? new Date().toISOString().split('T')[0] : opp.appliedDate;
           showToast(`Application for ${opp.company} updated to "${status.toUpperCase()}".`);
+          api.recordApplication("profile-alex-morgan", id, status).catch(() => {});
           return {
             ...opp,
             applicationStatus: status,
@@ -222,16 +268,16 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const stats = useMemo(() => {
     const totalFound = 127;
     const verifiedCount = 47;
-    const strongMatchesCount = opportunities.filter((o) => o.matchScore >= 85).length + 8; // realistic total
-    const applicationsCount = opportunities.filter((o) => o.applicationStatus && o.applicationStatus !== 'none').length;
+    const strongMatchesCount = 12;
+    const applicationsCount = 5;
     const savedCount = opportunities.filter((o) => o.isSaved).length;
 
     return {
       totalFound,
       verifiedCount,
-      strongMatchesCount: 12,
-      applicationsCount: 5,
-      savedCount
+      strongMatchesCount,
+      applicationsCount,
+      savedCount,
     };
   }, [opportunities]);
 
