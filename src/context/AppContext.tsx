@@ -9,6 +9,7 @@ import {
   Opportunity,
   UserProfile,
   VerificationAnalysisResult,
+  AuthUser,
 } from '@/types';
 import { initialUserProfile } from '@/data/initialUser';
 import { api, normalizeOpportunity, normalizeUserProfile } from '@/services/api';
@@ -62,6 +63,14 @@ interface AppContextType {
   backendStatus: BackendStatus;
   checkBackendConnection: () => Promise<void>;
   refreshDataFromBackend: () => Promise<void>;
+  currentUser: AuthUser | null;
+  token: string | null;
+  isAuthenticated: boolean;
+  isAuthLoading: boolean;
+  login: (payload: { email: string; password: string }) => Promise<{ success: boolean; error?: string }>;
+  register: (payload: { email: string; password: string; full_name: string; role?: string }) => Promise<{ success: boolean; error?: string }>;
+  logout: () => Promise<void>;
+  demoLogin: (role: 'student' | 'recruiter') => Promise<void>;
   stats: {
     totalFound: number;
     verifiedCount: number;
@@ -96,11 +105,73 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   // AI analysis state
   const [isAnalyzingProfile, setIsAnalyzingProfile] = useState(false);
 
+  // Authentication State
+  const [currentUser, setCurrentUser] = useState<AuthUser | null>(null);
+  const [token, setToken] = useState<string | null>(null);
+  const [isAuthLoading, setIsAuthLoading] = useState<boolean>(true);
+
+  const isAuthenticated = useMemo(() => Boolean(currentUser && token), [currentUser, token]);
+
   const showToast = useCallback((msg: string) => {
     setNotificationMessage(msg);
     setTimeout(() => {
       setNotificationMessage((prev) => (prev === msg ? null : prev));
     }, 4500);
+  }, []);
+
+  // Restore authenticated session from localStorage
+  useEffect(() => {
+    async function restoreSession() {
+      try {
+        if (typeof window === 'undefined') return;
+        const savedToken = localStorage.getItem('pathbridge_token');
+        if (!savedToken) {
+          setIsAuthLoading(false);
+          return;
+        }
+
+        // If it's a simulated demo token, restore demo user
+        if (savedToken.startsWith('demo-token-')) {
+          const role = savedToken.includes('recruiter') ? 'recruiter' : 'student';
+          const demoUser: AuthUser = {
+            id: role === 'student' ? 'demo-user-student' : 'demo-user-recruiter',
+            email: role === 'student' ? 'alex.morgan@university.edu' : 'recruiter.sarah@techcorp.io',
+            fullName: role === 'student' ? 'Alex Morgan' : 'Sarah Jenkins',
+            role,
+            avatarUrl:
+              role === 'student'
+                ? 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=250'
+                : 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&q=80&w=250',
+            isActive: true,
+          };
+          setToken(savedToken);
+          setCurrentUser(demoUser);
+          setIsAuthLoading(false);
+          return;
+        }
+
+        // Check against live FastAPI backend
+        const userObj = await api.getMe(savedToken);
+        if (userObj) {
+          setToken(savedToken);
+          setCurrentUser(userObj);
+          setUser((prev) => ({
+            ...prev,
+            name: userObj.fullName || prev.name,
+            email: userObj.email || prev.email,
+            avatarUrl: userObj.avatarUrl || prev.avatarUrl,
+          }));
+        } else {
+          localStorage.removeItem('pathbridge_token');
+        }
+      } catch (err) {
+        console.warn('Session restoration failed:', err);
+      } finally {
+        setIsAuthLoading(false);
+      }
+    }
+
+    restoreSession();
   }, []);
 
   // Sync with live PathBridge FastAPI Backend
@@ -329,45 +400,31 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     setPrepTargetOpportunity(null);
   };
 
-  // Re-analyze profile (either locally or via live backend)
+  // Re-analyze profile via live backend
   const triggerProfileAnalysis = async () => {
     setIsAnalyzingProfile(true);
-    showToast('AI Career Engine analyzing skills, repos, and coursework...');
+    showToast('AI Career Engine analyzing profile & refreshing recommendations via backend...');
 
     try {
-      // Simulate or call backend
-      await new Promise((res) => setTimeout(res, 2000));
+      if (backendStatus === 'connected') {
+        const resumePayload =
+          user.resumeText ||
+          `${user.name}\n${user.degree}\nSkills: ${[
+            ...user.skills.core,
+            ...user.skills.backend,
+            ...user.skills.cloudAndTools,
+          ].join(', ')}\nExperience: ${user.experience.map((e) => `${e.role} at ${e.organization}`).join('; ')}\nProjects: ${user.projects.map((p) => p.title).join('; ')}`;
 
-      setUser((prev) => ({
-        ...prev,
-        profileStrength: 95,
-        skills: {
-          ...prev.skills,
-          cloudAndTools: Array.from(new Set([...prev.skills.cloudAndTools, 'Azure (Certified)', 'Docker (Production)'])),
-        },
-      }));
-
-      setOpportunities((prev) =>
-        prev.map((opp) => {
-          if (opp.id === 'opp-msft-aiml') {
-            return {
-              ...opp,
-              matchScore: 98,
-              matchedSkills: Array.from(new Set([...opp.matchedSkills, 'Azure'])),
-              missingSkills: [],
-              skillGapNotes: 'All core and cloud prerequisite skills verified!',
-              matchBreakdown: {
-                ...opp.matchBreakdown,
-                skillsMatch: 100,
-                careerGoalAlignment: 98,
-              },
-            };
-          }
-          return opp;
-        })
-      );
-
-      showToast('AI Career Profile re-analysis complete! Profile strength raised to 95%.');
+        const updatedProfile = await api.analyzeResume(resumePayload);
+        if (updatedProfile) {
+          setUser(updatedProfile);
+        }
+        await refreshDataFromBackend();
+        showToast('Real-time AI analysis complete! Profile and recommendations updated from backend.');
+        return;
+      }
+    } catch (err) {
+      console.warn('Real-time analysis error:', err);
     } finally {
       setIsAnalyzingProfile(false);
     }
@@ -378,26 +435,17 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     setIsAnalyzingProfile(true);
     showToast(`Uploading and analyzing resume: "${file.name}" with Gemini...`);
     try {
-      if (backendStatus === 'connected') {
-        const parsedProfile = await api.analyzeResume(file);
-        if (parsedProfile) {
-          setUser(parsedProfile);
-          showToast('Resume parsed successfully by Gemini! Profile updated.');
-          await refreshDataFromBackend();
-          return true;
-        }
+      const parsedProfile = await api.analyzeResume(file);
+      if (parsedProfile) {
+        setUser(parsedProfile);
+        showToast('Resume parsed successfully by Gemini! Profile updated in real-time.');
+        await refreshDataFromBackend();
+        return true;
       }
-      // Demo fallback if backend is offline
-      await new Promise((r) => setTimeout(r, 2200));
-      setUser((prev) => ({
-        ...prev,
-        profileStrength: 92,
-        name: prev.name,
-      }));
-      showToast('Resume processed in demo mode. Technical skills extracted.');
-      return true;
+      showToast('Could not extract data from resume. Please check file format.');
+      return false;
     } catch {
-      showToast('Failed to parse resume. Please check file format.');
+      showToast('Backend error while parsing resume.');
       return false;
     } finally {
       setIsAnalyzingProfile(false);
@@ -407,27 +455,19 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   // Analyze Resume Text
   const analyzeResumeText = async (text: string): Promise<boolean> => {
     setIsAnalyzingProfile(true);
-    showToast('Analyzing pasted resume text with Gemini...');
+    showToast('Analyzing resume text with Gemini...');
     try {
-      if (backendStatus === 'connected') {
-        const parsedProfile = await api.analyzeResume(text);
-        if (parsedProfile) {
-          setUser(parsedProfile);
-          showToast('Resume text analyzed successfully by Gemini!');
-          await refreshDataFromBackend();
-          return true;
-        }
+      const parsedProfile = await api.analyzeResume(text);
+      if (parsedProfile) {
+        setUser(parsedProfile);
+        showToast('Resume text analyzed successfully by Gemini! Profile updated.');
+        await refreshDataFromBackend();
+        return true;
       }
-      // Demo fallback
-      await new Promise((r) => setTimeout(r, 1800));
-      setUser((prev) => ({
-        ...prev,
-        profileStrength: 90,
-      }));
-      showToast('Resume text processed in demo mode.');
-      return true;
+      showToast('Could not process resume text.');
+      return false;
     } catch {
-      showToast('Failed to process resume text.');
+      showToast('Backend error while processing resume text.');
       return false;
     } finally {
       setIsAnalyzingProfile(false);
@@ -563,6 +603,150 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  // Auth Actions
+  const login = async (payload: { email: string; password: string }) => {
+    setIsAuthLoading(true);
+    try {
+      const result = await api.login(payload);
+      if (result.success && result.data) {
+        const { accessToken, user: authUser } = result.data;
+        setToken(accessToken);
+        setCurrentUser(authUser);
+        if (typeof window !== 'undefined') {
+          localStorage.setItem('pathbridge_token', accessToken);
+        }
+        setUser((prev) => ({
+          ...prev,
+          name: authUser.fullName || prev.name,
+          email: authUser.email || prev.email,
+          avatarUrl: authUser.avatarUrl || prev.avatarUrl,
+        }));
+        showToast(`Welcome back, ${authUser.fullName}!`);
+        navigateTo('dashboard');
+        return { success: true };
+      }
+      return { success: false, error: result.error || 'Invalid credentials.' };
+    } catch (e: any) {
+      return { success: false, error: e.message || 'Login failed.' };
+    } finally {
+      setIsAuthLoading(false);
+    }
+  };
+
+  const register = async (payload: { email: string; password: string; full_name: string; role?: string }) => {
+    setIsAuthLoading(true);
+    try {
+      const result = await api.register(payload);
+      if (result.success && result.data) {
+        const { accessToken, user: authUser } = result.data;
+        setToken(accessToken);
+        setCurrentUser(authUser);
+        if (typeof window !== 'undefined') {
+          localStorage.setItem('pathbridge_token', accessToken);
+        }
+        setUser((prev) => ({
+          ...prev,
+          name: authUser.fullName || prev.name,
+          email: authUser.email || prev.email,
+          avatarUrl: authUser.avatarUrl || prev.avatarUrl,
+        }));
+        showToast(`Account created! Welcome, ${authUser.fullName}!`);
+        navigateTo('dashboard');
+        return { success: true };
+      }
+      return { success: false, error: result.error || 'Registration failed.' };
+    } catch (e: any) {
+      return { success: false, error: e.message || 'Registration failed.' };
+    } finally {
+      setIsAuthLoading(false);
+    }
+  };
+
+  const logout = async () => {
+    try {
+      if (token && !token.startsWith('demo-token-')) {
+        await api.logout(token).catch(() => {});
+      }
+    } finally {
+      setToken(null);
+      setCurrentUser(null);
+      if (typeof window !== 'undefined') {
+        localStorage.removeItem('pathbridge_token');
+      }
+      showToast('You have been signed out.');
+      navigateTo('landing');
+    }
+  };
+
+  const demoLogin = async (role: 'student' | 'recruiter') => {
+    setIsAuthLoading(true);
+    const credentials =
+      role === 'student'
+        ? {
+            email: 'alex.morgan@university.edu',
+            password: 'Password123!',
+            full_name: 'Alex Morgan',
+            role: 'student',
+          }
+        : {
+            email: 'recruiter.sarah@techcorp.io',
+            password: 'Password123!',
+            full_name: 'Sarah Jenkins',
+            role: 'recruiter',
+          };
+
+    try {
+      // 1. Try logging in with backend
+      let res = await api.login({ email: credentials.email, password: credentials.password });
+      if (!res.success) {
+        // 2. If not found, automatically register
+        res = await api.register(credentials);
+      }
+
+      if (res.success && res.data) {
+        const { accessToken, user: authUser } = res.data;
+        setToken(accessToken);
+        setCurrentUser(authUser);
+        if (typeof window !== 'undefined') {
+          localStorage.setItem('pathbridge_token', accessToken);
+        }
+        setUser((prev) => ({
+          ...prev,
+          name: authUser.fullName || prev.name,
+          email: authUser.email || prev.email,
+        }));
+        showToast(`Logged in as ⚡ Demo ${role === 'student' ? 'Student (Alex Morgan)' : 'Recruiter (Sarah Jenkins)'}`);
+        navigateTo('dashboard');
+        return;
+      }
+    } catch (e) {
+      console.warn('Demo login via API fallback:', e);
+    } finally {
+      setIsAuthLoading(false);
+    }
+
+    // Offline / Simulated Demo Fallback
+    const fallbackUser: AuthUser = {
+      id: role === 'student' ? 'demo-user-student' : 'demo-user-recruiter',
+      email: credentials.email,
+      fullName: credentials.full_name,
+      role: credentials.role,
+      avatarUrl:
+        role === 'student'
+          ? 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=250'
+          : 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&q=80&w=250',
+      isActive: true,
+      createdAt: new Date().toISOString(),
+    };
+    setCurrentUser(fallbackUser);
+    setToken(`demo-token-${role}`);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('pathbridge_token', `demo-token-${role}`);
+    }
+    showToast(`Logged in as ⚡ Demo ${role === 'student' ? 'Student' : 'Recruiter'} (Demo Mode)`);
+    navigateTo('dashboard');
+  };
+
   const stats = useMemo(() => {
     const totalFound = opportunities.length;
     const verifiedCount = opportunities.filter((o) => o.verificationStatus === 'verified').length;
@@ -625,6 +809,14 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         backendStatus,
         checkBackendConnection,
         refreshDataFromBackend,
+        currentUser,
+        token,
+        isAuthenticated,
+        isAuthLoading,
+        login,
+        register,
+        logout,
+        demoLogin,
         stats,
       }}
     >

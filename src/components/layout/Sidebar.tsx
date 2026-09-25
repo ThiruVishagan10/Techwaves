@@ -12,6 +12,9 @@ import {
   ExternalLink,
   ChevronRight,
   ArrowUpRight,
+  Settings,
+  LogOut,
+  User,
 } from 'lucide-react';
 import { useApp } from '@/context/AppContext';
 import { ActiveView } from '@/types';
@@ -22,7 +25,10 @@ export const Sidebar: React.FC = () => {
     navigateTo,
     stats,
     user,
-    triggerJudgeDemoFlow
+    triggerJudgeDemoFlow,
+    currentUser,
+    isAuthenticated,
+    logout,
   } = useApp();
 
   const navItems: {
@@ -85,6 +91,11 @@ export const Sidebar: React.FC = () => {
       label: 'Verification Center',
       icon: ShieldCheck,
       highlight: true,
+    },
+    {
+      id: 'settings',
+      label: 'Account & Security',
+      icon: Settings,
     },
   ];
 
@@ -225,38 +236,68 @@ export const Sidebar: React.FC = () => {
 
       {/* Bottom User Profile */}
       <div className="p-3 border-t border-slate-800/70 bg-[#080C16]">
-        <div
-          onClick={() => navigateTo('profile')}
-          className="flex items-center justify-between p-2 rounded-lg hover:bg-slate-800/60 cursor-pointer transition-colors group"
-        >
-          <div className="flex items-center gap-2.5 min-w-0">
-            <div className="relative">
-              <div className="w-9 h-9 rounded-full bg-gradient-to-tr from-slate-700 to-slate-500 border border-slate-600 flex items-center justify-center text-white text-xs font-semibold overflow-hidden">
-                AM
-              </div>
-              <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full bg-emerald-500 border-2 border-[#080C16]" />
-            </div>
-            <div className="min-w-0">
-              <div className="text-xs font-semibold text-white truncate group-hover:text-blue-400 transition-colors">
-                {user.name}
-              </div>
-              <div className="text-[10px] text-slate-400 truncate">
-                Profile: <span className="text-blue-400 font-medium">{user.profileStrength}%</span> complete
-              </div>
-            </div>
-          </div>
-          <ChevronRight className="w-4 h-4 text-slate-500 group-hover:text-slate-300 transition-colors" />
-        </div>
-
-        {/* Progress indicator bar */}
-        <div className="mt-2 px-2">
-          <div className="w-full bg-slate-800/80 rounded-full h-1 overflow-hidden">
+        {isAuthenticated ? (
+          <div>
             <div
-              className="bg-blue-500 h-1 rounded-full transition-all duration-500"
-              style={{ width: `${user.profileStrength}%` }}
-            />
+              onClick={() => navigateTo('profile')}
+              className="flex items-center justify-between p-2 rounded-lg hover:bg-slate-800/60 cursor-pointer transition-colors group"
+            >
+              <div className="flex items-center gap-2.5 min-w-0">
+                <div className="relative flex-shrink-0">
+                  <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-blue-600 to-indigo-600 border border-slate-600 flex items-center justify-center text-white text-xs font-semibold overflow-hidden">
+                    {(currentUser?.fullName || user.name).slice(0, 2).toUpperCase()}
+                  </div>
+                  <div className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-emerald-500 border-2 border-[#080C16]" />
+                </div>
+                <div className="min-w-0">
+                  <div className="text-xs font-semibold text-white truncate group-hover:text-blue-400 transition-colors">
+                    {currentUser?.fullName || user.name}
+                  </div>
+                  <div className="text-[10px] text-slate-400 truncate capitalize flex items-center gap-1">
+                    <span>{currentUser?.role || 'Student'}</span>
+                    <span>·</span>
+                    <span className="text-blue-400 font-medium">{user.profileStrength}%</span>
+                  </div>
+                </div>
+              </div>
+              <ChevronRight className="w-4 h-4 text-slate-500 group-hover:text-slate-300 transition-colors flex-shrink-0" />
+            </div>
+
+            {/* Quick Actions Bar */}
+            <div className="mt-2 pt-2 border-t border-slate-800/50 flex items-center justify-between px-1 text-[11px]">
+              <button
+                onClick={() => navigateTo('settings')}
+                className="text-slate-400 hover:text-white transition-colors flex items-center gap-1"
+                title="Account Settings"
+              >
+                <Settings className="w-3.5 h-3.5" />
+                <span>Settings</span>
+              </button>
+
+              <button
+                onClick={() => logout()}
+                className="text-rose-400/80 hover:text-rose-300 transition-colors flex items-center gap-1"
+                title="Sign Out"
+              >
+                <LogOut className="w-3.5 h-3.5" />
+                <span>Sign Out</span>
+              </button>
+            </div>
           </div>
-        </div>
+        ) : (
+          <div className="space-y-2">
+            <div className="text-[11px] text-slate-400">
+              Unlock personalized AI matching & verification:
+            </div>
+            <button
+              onClick={() => navigateTo('auth')}
+              className="w-full flex items-center justify-center gap-2 py-2 px-3 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold shadow-md shadow-blue-500/20 transition-all"
+            >
+              <User className="w-3.5 h-3.5" />
+              <span>Sign In / Register</span>
+            </button>
+          </div>
+        )}
 
         {/* Exit to Landing link */}
         <div className="mt-2 pt-2 border-t border-slate-800/40 flex items-center justify-between px-2 text-[11px]">

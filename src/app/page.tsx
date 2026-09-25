@@ -13,6 +13,8 @@ import { RecommendationsView } from '@/components/views/RecommendationsView';
 import { ApplicationsView } from '@/components/views/ApplicationsView';
 import { ProfileView } from '@/components/views/ProfileView';
 import { SavedView } from '@/components/views/SavedView';
+import { AuthView } from '@/components/views/AuthView';
+import { SettingsView } from '@/components/views/SettingsView';
 import { ApplyModal } from '@/components/modals/ApplyModal';
 import { SkillGapPrepModal } from '@/components/modals/SkillGapPrepModal';
 import { AIAnalysisModal } from '@/components/modals/AIAnalysisModal';
@@ -24,6 +26,11 @@ function MainAppContent() {
   // If user is on landing page, display the full standalone landing screen
   if (activeView === 'landing') {
     return <LandingView />;
+  }
+
+  // If user is on authentication page, display the full standalone auth screen
+  if (activeView === 'auth') {
+    return <AuthView />;
   }
 
   return (
@@ -44,6 +51,7 @@ function MainAppContent() {
           {activeView === 'applications' && <ApplicationsView />}
           {activeView === 'profile' && <ProfileView />}
           {activeView === 'saved' && <SavedView />}
+          {activeView === 'settings' && <SettingsView />}
         </main>
       </div>
 

@@ -28,35 +28,20 @@ export const SkillGapPrepModal: React.FC = () => {
     );
   };
 
-  const prepModules = [
-    {
-      id: 1,
-      title: 'Azure Cloud Fundamentals for AI Engineers',
-      duration: '45 mins',
-      type: 'Guided Interactive Lab',
-      summary:
-        'Understand Azure Resource Groups, Blob Storage container configuration for training datasets, and IAM service principals.',
-      keyConcepts: ['Azure Blob Storage', 'Shared Access Signatures (SAS)', 'Azure CLI'],
-    },
-    {
-      id: 2,
-      title: 'Azure Machine Learning Studio & Workspace',
-      duration: '75 mins',
-      type: 'Hands-on Code Walkthrough',
-      summary:
-        'Register your PyTorch healthcare model in the Azure ML Model Registry, create Compute Clusters, and log experiment metrics.',
-      keyConcepts: ['AzureML SDK v2', 'MLflow integration', 'Compute Instances'],
-    },
-    {
-      id: 3,
-      title: 'Deploying Real-time Inference Endpoints',
-      duration: '60 mins',
-      type: 'Architecture Case Study',
-      summary:
-        'Deploy a scoring container with a REST endpoint using Azure Managed Online Endpoints with auto-scaling rules.',
-      keyConcepts: ['Managed Endpoints', 'Latency budgets', 'Traffic splitting / Canary'],
-    },
-  ];
+  const gapSkills = opp.missingSkills && opp.missingSkills.length > 0 ? opp.missingSkills : opp.skills.slice(0, 3);
+  const prepModules = gapSkills.slice(0, 3).map((skill, idx) => ({
+    id: idx + 1,
+    title: `${skill} Core Competency for ${opp.company}`,
+    duration: idx === 0 ? '45 mins' : idx === 1 ? '60 mins' : '75 mins',
+    type:
+      idx === 0
+        ? 'Interactive Guided Lab'
+        : idx === 1
+        ? 'Hands-on Code Walkthrough'
+        : 'Architecture Case Study',
+    summary: `Targeted review of ${skill} concepts required for ${opp.company}'s technical interview evaluation.`,
+    keyConcepts: [`${skill} Architecture`, `Production Best Practices`, `${opp.title} Assessment Focus`],
+  }));
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm animate-fadeIn">

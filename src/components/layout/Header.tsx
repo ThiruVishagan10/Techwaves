@@ -1,12 +1,18 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   Search,
   Bell,
   Sparkles,
   ChevronDown,
   Info,
+  User,
+  Settings,
+  LogOut,
+  ShieldCheck,
+  GraduationCap,
+  Briefcase,
 } from 'lucide-react';
 import { useApp } from '@/context/AppContext';
 
@@ -21,10 +27,16 @@ export const Header: React.FC = () => {
     notificationMessage,
     backendStatus,
     checkBackendConnection,
+    opportunities,
+    currentUser,
+    user,
+    isAuthenticated,
+    logout,
   } = useApp();
 
   const [isDemoDropdownOpen, setIsDemoDropdownOpen] = useState(false);
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
+  const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
 
   const getBreadcrumb = () => {
     switch (activeView) {
@@ -46,34 +58,50 @@ export const Header: React.FC = () => {
         return 'AI Career Profile & Skill Taxonomy';
       case 'saved':
         return 'Saved Opportunities';
+      case 'settings':
+        return 'Account & Security Settings';
+      case 'auth':
+        return 'Authentication & Portal Access';
       default:
         return 'Overview';
     }
   };
 
-  const sampleNotifications = [
-    {
-      id: 'notif-1',
-      title: 'Upcoming Application Deadline',
-      desc: 'Microsoft AI/ML Intern application cycle closes in 14 days.',
-      time: '2 hours ago',
-      type: 'info',
-    },
-    {
-      id: 'notif-2',
-      title: 'Verification Flag Detected',
-      desc: 'NovaLabs AI internship application URL was flagged for third-party hosting.',
-      time: '1 day ago',
-      type: 'warning',
-    },
-    {
-      id: 'notif-3',
-      title: 'New High-Match Verified Role',
-      desc: 'Atlassian Data Engineering Intern (89% Match) was verified on official Lever portal.',
-      time: '2 days ago',
-      type: 'success',
-    },
-  ];
+  const notifications = useMemo(() => {
+    const topMatch = opportunities.find((o) => o.matchScore >= 90);
+    const flagged = opportunities.find((o) => o.verificationStatus === 'suspicious');
+    const applied = opportunities.find((o) => o.applicationStatus && o.applicationStatus !== 'none');
+
+    const list = [];
+    if (topMatch) {
+      list.push({
+        id: 'notif-top',
+        title: 'New High-Match Verified Role',
+        desc: `${topMatch.company} · ${topMatch.title} (${topMatch.matchScore}% Match) verified on official portal.`,
+        time: `${topMatch.postedDaysAgo}d ago`,
+        type: 'success',
+      });
+    }
+    if (applied) {
+      list.push({
+        id: 'notif-app',
+        title: 'Tracked Application Stage',
+        desc: `${applied.company} application currently in "${applied.applicationStatus?.toUpperCase()}" stage.`,
+        time: 'Recently updated',
+        type: 'info',
+      });
+    }
+    if (flagged) {
+      list.push({
+        id: 'notif-flag',
+        title: 'Security Flag by Trust Engine',
+        desc: `${flagged.company} posting was detected with suspicious risk factors.`,
+        time: 'Active flag',
+        type: 'warning',
+      });
+    }
+    return list;
+  }, [opportunities]);
 
   return (
     <header className="h-16 border-b border-slate-800/80 bg-[#0A0E1A]/90 backdrop-blur-md sticky top-0 z-20 px-6 flex items-center justify-between">
@@ -271,10 +299,10 @@ export const Header: React.FC = () => {
             <div className="absolute right-0 mt-2 w-80 bg-[#0F172A] border border-slate-800 rounded-xl shadow-2xl p-3 z-50 text-xs">
               <div className="flex items-center justify-between pb-2 border-b border-slate-800 mb-2">
                 <span className="font-semibold text-white">Notifications & Alerts</span>
-                <span className="text-[10px] text-blue-400 font-mono">3 unread</span>
+                <span className="text-[10px] text-blue-400 font-mono">{notifications.length} unread</span>
               </div>
               <div className="space-y-2">
-                {sampleNotifications.map((notif) => (
+                {notifications.map((notif: any) => (
                   <div
                     key={notif.id}
                     className="p-2 rounded bg-slate-900/60 border border-slate-800/60 hover:bg-slate-850"
@@ -290,6 +318,90 @@ export const Header: React.FC = () => {
             </div>
           )}
         </div>
+
+        {/* User Account Dropdown / Sign In Button */}
+        {isAuthenticated ? (
+          <div className="relative">
+            <button
+              onClick={() => {
+                setIsUserMenuOpen(!isUserMenuOpen);
+                setIsDemoDropdownOpen(false);
+                setIsNotificationsOpen(false);
+              }}
+              className="flex items-center gap-2 p-1 pl-2 pr-2.5 rounded-full bg-slate-900 border border-slate-800 hover:border-slate-700 transition-colors"
+            >
+              <div className="w-6 h-6 rounded-full bg-gradient-to-tr from-blue-600 to-indigo-600 flex items-center justify-center text-white text-[10px] font-bold">
+                {(currentUser?.fullName || user.name).slice(0, 2).toUpperCase()}
+              </div>
+              <span className="text-xs font-medium text-slate-200 hidden md:inline max-w-[110px] truncate">
+                {currentUser?.fullName || user.name}
+              </span>
+              <ChevronDown className="w-3 h-3 text-slate-400" />
+            </button>
+
+            {isUserMenuOpen && (
+              <div className="absolute right-0 mt-2 w-64 bg-[#0F172A] border border-slate-800 rounded-xl shadow-2xl p-2 z-50 text-xs animate-fadeIn">
+                <div className="px-3 py-2 border-b border-slate-800/80 mb-1">
+                  <div className="font-semibold text-white truncate">
+                    {currentUser?.fullName || user.name}
+                  </div>
+                  <div className="text-[11px] text-slate-400 truncate">
+                    {currentUser?.email || user.email}
+                  </div>
+                  <div className="mt-1.5 inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-blue-500/10 text-blue-400 text-[10px] font-mono">
+                    <ShieldCheck className="w-3 h-3" />
+                    <span className="capitalize">{currentUser?.role || 'Student'}</span>
+                  </div>
+                </div>
+
+                <div className="space-y-1">
+                  <button
+                    onClick={() => {
+                      navigateTo('profile');
+                      setIsUserMenuOpen(false);
+                    }}
+                    className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-slate-300 hover:text-white hover:bg-slate-800/60 transition-colors"
+                  >
+                    <User className="w-3.5 h-3.5 text-blue-400" />
+                    <span>Career Profile</span>
+                  </button>
+
+                  <button
+                    onClick={() => {
+                      navigateTo('settings');
+                      setIsUserMenuOpen(false);
+                    }}
+                    className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-slate-300 hover:text-white hover:bg-slate-800/60 transition-colors"
+                  >
+                    <Settings className="w-3.5 h-3.5 text-slate-400" />
+                    <span>Account & Security</span>
+                  </button>
+
+                  <div className="border-t border-slate-800 my-1" />
+
+                  <button
+                    onClick={() => {
+                      logout();
+                      setIsUserMenuOpen(false);
+                    }}
+                    className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-rose-400 hover:text-rose-300 hover:bg-rose-950/20 transition-colors font-medium"
+                  >
+                    <LogOut className="w-3.5 h-3.5" />
+                    <span>Sign Out</span>
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        ) : (
+          <button
+            onClick={() => navigateTo('auth')}
+            className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold shadow-md shadow-blue-500/20 transition-all"
+          >
+            <User className="w-3.5 h-3.5" />
+            <span>Sign In</span>
+          </button>
+        )}
       </div>
     </header>
   );

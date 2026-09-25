@@ -114,6 +114,24 @@ export interface UserProfile {
     targetCompensation: string;
     earliestStartDate: string;
   };
+  resumeText?: string;
+}
+
+export interface AuthUser {
+  id: string;
+  email: string;
+  fullName: string;
+  role: 'student' | 'recruiter' | 'admin' | string;
+  avatarUrl?: string | null;
+  isActive: boolean;
+  profileId?: string | null;
+  createdAt?: string;
+}
+
+export interface AuthResponse {
+  accessToken: string;
+  tokenType: string;
+  user: AuthUser;
 }
 
 export type ActiveView =
@@ -125,5 +143,7 @@ export type ActiveView =
   | 'recommendations'
   | 'applications'
   | 'profile'
-  | 'saved';
+  | 'saved'
+  | 'auth'
+  | 'settings';
 

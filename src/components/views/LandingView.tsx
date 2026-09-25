@@ -17,7 +17,7 @@ import {
 import { useApp } from '@/context/AppContext';
 
 export const LandingView: React.FC = () => {
-  const { navigateTo, triggerJudgeDemoFlow } = useApp();
+  const { navigateTo, triggerJudgeDemoFlow, isAuthenticated, currentUser, user } = useApp();
 
   return (
     <div className="min-h-screen bg-[#080C16] text-slate-100 flex flex-col justify-between selection:bg-blue-600/30">
@@ -64,13 +64,31 @@ export const LandingView: React.FC = () => {
               <span>Judge Flow Demo</span>
             </button>
 
-            <button
-              onClick={() => navigateTo('dashboard')}
-              className="px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold shadow-lg shadow-blue-500/20 transition-all flex items-center gap-1.5"
-            >
-              <span>Enter Platform</span>
-              <ArrowRight className="w-3.5 h-3.5" />
-            </button>
+            {isAuthenticated ? (
+              <button
+                onClick={() => navigateTo('dashboard')}
+                className="px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold shadow-lg shadow-blue-500/20 transition-all flex items-center gap-1.5"
+              >
+                <span>Dashboard ({currentUser?.fullName || user.name})</span>
+                <ArrowRight className="w-3.5 h-3.5" />
+              </button>
+            ) : (
+              <>
+                <button
+                  onClick={() => navigateTo('auth')}
+                  className="px-3 py-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 border border-slate-750 text-slate-200 text-xs font-medium transition-all"
+                >
+                  Sign In
+                </button>
+                <button
+                  onClick={() => navigateTo('auth')}
+                  className="px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold shadow-lg shadow-blue-500/20 transition-all flex items-center gap-1.5"
+                >
+                  <span>Get Started</span>
+                  <ArrowRight className="w-3.5 h-3.5" />
+                </button>
+              </>
+            )}
           </div>
         </div>
       </nav>

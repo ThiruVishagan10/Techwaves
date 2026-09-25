@@ -5,6 +5,8 @@ import {
   VerificationConfidence,
   VerificationAnalysisResult,
   MatchAnalysisResult,
+  AuthUser,
+  AuthResponse,
 } from '@/types';
 
 // Supports both http://localhost:8000 and http://localhost:8000/api
@@ -537,6 +539,124 @@ export const api = {
       return res.ok;
     } catch {
       return false;
+    }
+  },
+
+  // 7. Authentication Service
+  async login(payload: {
+    email: string;
+    password: string;
+  }): Promise<{ success: boolean; data?: AuthResponse; error?: string }> {
+    try {
+      const res = await fetch(`${API_BASE_URL}/auth/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      const json = await res.json();
+      if (!res.ok || !json.success) {
+        return {
+          success: false,
+          error: json.error?.message || json.message || 'Invalid email or password.',
+        };
+      }
+      return {
+        success: true,
+        data: {
+          accessToken: json.data.access_token,
+          tokenType: json.data.token_type,
+          user: {
+            id: json.data.user.id,
+            email: json.data.user.email,
+            fullName: json.data.user.full_name,
+            role: json.data.user.role,
+            avatarUrl: json.data.user.avatar_url,
+            isActive: json.data.user.is_active,
+            profileId: json.data.user.profile_id,
+            createdAt: json.data.user.created_at,
+          },
+        },
+      };
+    } catch (e: any) {
+      return { success: false, error: e.message || 'Network error during login.' };
+    }
+  },
+
+  async register(payload: {
+    email: string;
+    password: string;
+    full_name: string;
+    role?: string;
+    avatar_url?: string;
+  }): Promise<{ success: boolean; data?: AuthResponse; error?: string }> {
+    try {
+      const res = await fetch(`${API_BASE_URL}/auth/register`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      const json = await res.json();
+      if (!res.ok || !json.success) {
+        return {
+          success: false,
+          error: json.error?.message || json.message || 'Registration failed. Email may already be in use.',
+        };
+      }
+      return {
+        success: true,
+        data: {
+          accessToken: json.data.access_token,
+          tokenType: json.data.token_type,
+          user: {
+            id: json.data.user.id,
+            email: json.data.user.email,
+            fullName: json.data.user.full_name,
+            role: json.data.user.role,
+            avatarUrl: json.data.user.avatar_url,
+            isActive: json.data.user.is_active,
+            profileId: json.data.user.profile_id,
+            createdAt: json.data.user.created_at,
+          },
+        },
+      };
+    } catch (e: any) {
+      return { success: false, error: e.message || 'Network error during registration.' };
+    }
+  },
+
+  async getMe(token: string): Promise<AuthUser | null> {
+    try {
+      const res = await fetch(`${API_BASE_URL}/auth/me`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) return null;
+      const json = await res.json();
+      if (!json.success || !json.data) return null;
+      return {
+        id: json.data.id,
+        email: json.data.email,
+        fullName: json.data.full_name,
+        role: json.data.role,
+        avatarUrl: json.data.avatar_url,
+        isActive: json.data.is_active,
+        profileId: json.data.profile_id,
+        createdAt: json.data.created_at,
+      };
+    } catch {
+      return null;
+    }
+  },
+
+  async logout(token?: string | null): Promise<boolean> {
+    try {
+      if (!token) return true;
+      const res = await fetch(`${API_BASE_URL}/auth/logout`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      return res.ok;
+    } catch {
+      return true;
     }
   },
 };

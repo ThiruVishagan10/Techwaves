@@ -32,25 +32,21 @@ export const VerificationView: React.FC = () => {
     setInspectUrl(url);
     setIsScanning(true);
     try {
-      const oppId =
-        scenario === 'verified'
-          ? 'opp-msft-aiml'
-          : scenario === 'review'
-          ? 'opp-novalabs-ml'
-          : 'opp-cryptoapex-scam';
+      const isPresetVerified = url.includes('microsoft.com');
+      const isPresetReview = url.includes('novalabs') || url.includes('thirdparty-talent');
+      const isPresetScam = url.includes('cryptoapex') || url.includes('telegram') || url.includes('bit.ly');
 
-      const company =
-        scenario === 'verified'
-          ? 'Microsoft'
-          : scenario === 'review'
-          ? 'NovaLabs AI'
-          : 'CryptoApex Labs';
+      let payload: { opportunity_id?: string; url?: string; company?: string } = { url };
 
-      const res = await runVerificationAnalysis({
-        opportunity_id: oppId,
-        url,
-        company,
-      });
+      if (isPresetVerified) {
+        payload = { opportunity_id: 'opp-msft-aiml', url, company: 'Microsoft' };
+      } else if (isPresetReview) {
+        payload = { opportunity_id: 'opp-novalabs-ml', url, company: 'NovaLabs AI' };
+      } else if (isPresetScam) {
+        payload = { opportunity_id: 'opp-cryptoapex-scam', url, company: 'CryptoApex Global Ltd' };
+      }
+
+      const res = await runVerificationAnalysis(payload);
 
       if (res) {
         setLiveScanResult(res);
