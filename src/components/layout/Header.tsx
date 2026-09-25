@@ -149,8 +149,6 @@ export const Header: React.FC = () => {
           />
         </div>
 
-// Backend status UI removed
-
         {/* Judge Demo Flows Dropdown */}
         <div className="relative">
           <button
