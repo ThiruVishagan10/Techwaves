@@ -22,7 +22,7 @@ import {
 import { useApp } from '@/context/AppContext';
 
 export const AuthView: React.FC = () => {
-  const { login, register, demoLogin, isAuthLoading, navigateTo, showToast = (msg: string) => {} } = useApp() as any;
+  const { login, register, demoLogin, isAuthLoading, navigateTo } = useApp();
 
   const [mode, setMode] = useState<'signin' | 'signup'>('signin');
   const [showPassword, setShowPassword] = useState(false);

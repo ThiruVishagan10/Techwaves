@@ -11,11 +11,16 @@ import {
   Settings,
   LogOut,
   ShieldCheck,
-  GraduationCap,
-  Briefcase,
 } from 'lucide-react';
 import { useApp } from '@/context/AppContext';
 import { api } from '@/services/api';
+
+interface HeaderNotification {
+  id: string;
+  title: string;
+  time: string;
+  desc: string;
+}
 
 export const Header: React.FC = () => {
   const {
@@ -303,7 +308,7 @@ export const Header: React.FC = () => {
                 <span className="text-[10px] text-blue-400 font-mono">{notifications.length} unread</span>
               </div>
               <div className="space-y-2">
-                {notifications.map((notif: any) => (
+                {notifications.map((notif: HeaderNotification) => (
                   <div
                     key={notif.id}
                     className="p-2 rounded bg-slate-900/60 border border-slate-800/60 hover:bg-slate-850"

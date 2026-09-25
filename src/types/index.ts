@@ -43,19 +43,23 @@ export interface Opportunity {
   id: string;
   title: string;
   company: string;
-  companyLogoColor: string;
-  companyInitial: string;
+  companyLogoColor?: string;
+  companyInitial?: string;
   location: string;
   workMode: WorkMode;
   type: OpportunityType;
   duration: string;
   stipend: string;
   deadline: string;
-  source: string;
-  sourceUrl: string;
+  source?: string;
+  sourceUrl?: string;
   matchScore: number;
   verificationStatus: VerificationStatus;
   verificationConfidence: VerificationConfidence;
+  verificationScore?: number;
+  trustSignals?: string[];
+  riskFactors?: string[];
+  logoUrl?: string;
   skills: string[];
   matchedSkills: string[];
   missingSkills: string[];
@@ -113,7 +117,14 @@ export interface UserProfile {
     preferredLocations: string[];
     targetCompensation: string;
     earliestStartDate: string;
+    workMode?: string[];
+    roles?: string[];
+    locations?: string[];
+    minStipend?: string;
   };
+  verificationBadges?: string[];
+  resumeFileName?: string;
+  resumeLastUpdated?: string;
   resumeText?: string;
 }
 

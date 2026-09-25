@@ -4,19 +4,13 @@ import React, { useState } from 'react';
 import {
   User,
   Shield,
-  KeyRound,
-  Bell,
   Smartphone,
   Laptop,
   CheckCircle2,
-  AlertTriangle,
-  ExternalLink,
   Save,
   Lock,
   LogOut,
-  Mail,
   ShieldAlert,
-  Sliders,
   Eye,
   EyeOff,
   Briefcase,
@@ -29,8 +23,6 @@ export const SettingsView: React.FC = () => {
     currentUser,
     user,
     logout,
-    navigateTo,
-    backendStatus,
   } = useApp();
 
   const [activeTab, setActiveTab] = useState<'profile' | 'security' | 'trust' | 'sessions'>('profile');
@@ -38,7 +30,7 @@ export const SettingsView: React.FC = () => {
 
   // Profile Form state
   const [fullName, setFullName] = useState(currentUser?.fullName || user.name);
-  const [email, setEmail] = useState(currentUser?.email || user.email);
+  const email = currentUser?.email || user.email;
   const [university, setUniversity] = useState(user.university);
   const [degree, setDegree] = useState(user.degree);
   const [targetRole, setTargetRole] = useState('AI/ML Research & Engineering Intern');
@@ -446,6 +438,28 @@ export const SettingsView: React.FC = () => {
                     <div
                       className={`w-4 h-4 rounded-full bg-white transition-transform ${
                         scamAlertNotification ? 'translate-x-5' : 'translate-x-0'
+                      }`}
+                    />
+                  </button>
+                </div>
+
+                <div className="p-4 rounded-xl bg-slate-900/60 border border-slate-800 flex items-center justify-between">
+                  <div>
+                    <div className="text-xs font-semibold text-white">Suspicious Job Warning Banners</div>
+                    <div className="text-[11px] text-slate-400">
+                      Display high-visibility warning badges and explanations on flagged job postings.
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setSuspiciousJobWarning(!suspiciousJobWarning)}
+                    className={`w-11 h-6 rounded-full transition-colors relative flex items-center px-1 ${
+                      suspiciousJobWarning ? 'bg-blue-600' : 'bg-slate-700'
+                    }`}
+                  >
+                    <div
+                      className={`w-4 h-4 rounded-full bg-white transition-transform ${
+                        suspiciousJobWarning ? 'translate-x-5' : 'translate-x-0'
                       }`}
                     />
                   </button>
