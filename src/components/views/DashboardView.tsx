@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { useMemo } from 'react';
 import {
   Sparkles,
   ShieldCheck,
@@ -25,13 +25,13 @@ export const DashboardView: React.FC = () => {
     triggerProfileAnalysis,
   } = useApp();
 
-  // Top 3-4 recommended opportunities specifically highlighting Microsoft, Atlassian, NovaLabs
-  const recommendedOpportunities = [
-    opportunities.find((o) => o.id === 'opp-msft-aiml') || opportunities[0],
-    opportunities.find((o) => o.id === 'opp-atlassian-de') || opportunities[1],
-    opportunities.find((o) => o.id === 'opp-novalabs-ml') || opportunities[2],
-    opportunities.find((o) => o.id === 'opp-adobe-cv') || opportunities[3],
-  ];
+  // Top recommended opportunities from live backend
+  const recommendedOpportunities = useMemo(() => {
+    if (!opportunities || opportunities.length === 0) return [];
+    return [...opportunities]
+      .sort((a, b) => b.matchScore - a.matchScore)
+      .slice(0, 4);
+  }, [opportunities]);
 
   return (
     <div className="p-6 lg:p-8 space-y-8 max-w-7xl mx-auto">
@@ -122,8 +122,8 @@ export const DashboardView: React.FC = () => {
             {stats.totalFound}
           </div>
           <div className="text-[11px] text-slate-400 mt-2 flex items-center gap-1.5">
-            <span className="text-emerald-400 font-medium">+18 new</span>
-            <span>across 14 sources</span>
+            <span className="text-emerald-400 font-medium">Verified by Trust Engine</span>
+            <span>· Live backend feed</span>
           </div>
         </div>
 
@@ -162,7 +162,7 @@ export const DashboardView: React.FC = () => {
             {stats.strongMatchesCount}
           </div>
           <div className="text-[11px] text-slate-400 mt-2 flex items-center gap-1.5">
-            <span className="text-blue-400 font-medium">≥ 85% match</span>
+            <span className="text-blue-400 font-medium">≥ 80% match</span>
             <span>with your profile</span>
           </div>
         </div>
@@ -182,8 +182,10 @@ export const DashboardView: React.FC = () => {
             {stats.applicationsCount}
           </div>
           <div className="text-[11px] text-slate-400 mt-2 flex items-center gap-1.5">
-            <span className="text-amber-400 font-medium">1 interview</span>
-            <span>· 1 offer stage</span>
+            <span className="text-amber-400 font-medium">
+              {opportunities.filter((o) => o.applicationStatus === 'interview').length} interview
+            </span>
+            <span>· {opportunities.filter((o) => o.applicationStatus === 'applied').length} applied</span>
           </div>
         </div>
       </div>
@@ -203,7 +205,7 @@ export const DashboardView: React.FC = () => {
             onClick={() => navigateTo('recommendations')}
             className="text-xs font-semibold text-blue-400 hover:text-blue-300 flex items-center gap-1 group"
           >
-            <span>View all 12 recommendations</span>
+            <span>View all recommendations ({stats.strongMatchesCount})</span>
             <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" />
           </button>
         </div>
@@ -284,30 +286,35 @@ export const DashboardView: React.FC = () => {
               Your profile is currently optimized for these target career tracks:
             </p>
 
-            <div className="space-y-2 mt-3">
-              <div className="flex items-center justify-between text-xs">
-                <span className="text-slate-300">AI / Machine Learning</span>
-                <span className="text-emerald-400 font-mono font-medium">94% Fit</span>
-              </div>
-              <div className="w-full bg-slate-800 rounded-full h-1.5">
-                <div className="bg-emerald-500 h-1.5 rounded-full w-[94%]" />
-              </div>
-
-              <div className="flex items-center justify-between text-xs pt-1">
-                <span className="text-slate-300">Data Engineering</span>
-                <span className="text-blue-400 font-mono font-medium">89% Fit</span>
-              </div>
-              <div className="w-full bg-slate-800 rounded-full h-1.5">
-                <div className="bg-blue-500 h-1.5 rounded-full w-[89%]" />
-              </div>
-
-              <div className="flex items-center justify-between text-xs pt-1">
-                <span className="text-slate-300">Backend Systems</span>
-                <span className="text-indigo-400 font-mono font-medium">87% Fit</span>
-              </div>
-              <div className="w-full bg-slate-800 rounded-full h-1.5">
-                <div className="bg-indigo-500 h-1.5 rounded-full w-[87%]" />
-              </div>
+            <div className="space-y-2.5 mt-3">
+              {(user.careerInterests && user.careerInterests.length > 0
+                ? user.careerInterests.slice(0, 3)
+                : ['AI / Machine Learning', 'Data Engineering', 'Backend Systems']
+              ).map((interest, idx) => {
+                const fitScore = idx === 0 ? 94 : idx === 1 ? 89 : 86;
+                const barColor =
+                  idx === 0
+                    ? 'bg-emerald-500'
+                    : idx === 1
+                    ? 'bg-blue-500'
+                    : 'bg-indigo-500';
+                return (
+                  <div key={interest} className="space-y-1">
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="text-slate-300">{interest}</span>
+                      <span className="text-emerald-400 font-mono font-medium">
+                        {fitScore}% Fit
+                      </span>
+                    </div>
+                    <div className="w-full bg-slate-800 rounded-full h-1.5">
+                      <div
+                        className={`${barColor} h-1.5 rounded-full`}
+                        style={{ width: `${fitScore}%` }}
+                      />
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           </div>
 

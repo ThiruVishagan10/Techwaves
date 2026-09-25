@@ -50,6 +50,23 @@ export const OpportunityDetailsView: React.FC = () => {
     }
   };
 
+  if (!opp) {
+    return (
+      <div className="p-12 max-w-7xl mx-auto text-center space-y-4">
+        <div className="w-12 h-12 rounded-xl bg-blue-600/20 border border-blue-500/40 text-blue-400 flex items-center justify-center mx-auto">
+          <RotateCw className="w-6 h-6 animate-spin" />
+        </div>
+        <div className="text-sm font-bold text-white">Loading Opportunity from Backend...</div>
+        <button
+          onClick={() => navigateTo('discover')}
+          className="text-xs text-blue-400 hover:underline"
+        >
+          ← Return to Opportunities
+        </button>
+      </div>
+    );
+  }
+
   return (
     <div className="p-6 lg:p-8 space-y-8 max-w-7xl mx-auto">
       {/* Back button and quick navigation */}

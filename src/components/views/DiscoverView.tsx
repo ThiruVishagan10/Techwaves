@@ -36,6 +36,16 @@ export const DiscoverView: React.FC = () => {
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [selectedLocation, setSelectedLocation] = useState<string>('all');
 
+  // Distinct locations from backend opportunities
+  const locationOptions = useMemo(() => {
+    const locSet = new Set<string>();
+    opportunities.forEach((o) => {
+      const city = o.location.split(/[·,\/]/)[0].trim();
+      if (city) locSet.add(city);
+    });
+    return Array.from(locSet).sort();
+  }, [opportunities]);
+
   // Filter & sort logic
   const filteredOpportunities = useMemo(() => {
     return opportunities
@@ -240,11 +250,11 @@ export const DiscoverView: React.FC = () => {
               className="w-full bg-slate-900 border border-slate-700/80 rounded-lg py-1.5 px-2.5 text-xs text-slate-200 focus:outline-none focus:border-blue-500"
             >
               <option value="all">All Locations</option>
-              <option value="Hyderabad">Hyderabad</option>
-              <option value="Bengaluru">Bengaluru</option>
-              <option value="Remote">Remote</option>
-              <option value="Noida">Noida</option>
-              <option value="Pune">Pune</option>
+              {locationOptions.map((loc) => (
+                <option key={loc} value={loc}>
+                  {loc}
+                </option>
+              ))}
             </select>
           </div>
         </div>

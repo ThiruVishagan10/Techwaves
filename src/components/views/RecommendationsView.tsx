@@ -93,11 +93,11 @@ export const RecommendationsView: React.FC = () => {
 
           <span className="text-xs font-medium px-3 py-1 rounded-lg bg-slate-900 border border-slate-700/80 text-slate-200 flex items-center gap-1.5">
             <MapPin className="w-3 h-3 text-indigo-400" />
-            <span>Hyderabad, Bengaluru, Remote</span>
+            <span>{user.preferences?.preferredLocations?.join(', ') || 'Remote & Hybrid'}</span>
           </span>
 
           <span className="text-xs font-mono font-medium px-3 py-1 rounded-lg bg-emerald-950/30 border border-emerald-500/30 text-emerald-300">
-            Penultimate Year (Grad 2027)
+            {user.batch || 'Penultimate Year (Grad 2027)'}
           </span>
         </div>
       </div>

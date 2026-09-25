@@ -10,8 +10,7 @@ import {
   UserProfile,
   VerificationAnalysisResult,
 } from '@/types';
-import { mockOpportunities } from '@/data/mockData';
-import { mockUser } from '@/data/mockUser';
+import { initialUserProfile } from '@/data/initialUser';
 import { api, normalizeOpportunity, normalizeUserProfile } from '@/services/api';
 
 interface AppContextType {
@@ -76,8 +75,8 @@ const AppContext = createContext<AppContextType | undefined>(undefined);
 
 export function AppProvider({ children }: { children: React.ReactNode }) {
   const [activeView, setActiveView] = useState<ActiveView>('dashboard');
-  const [opportunities, setOpportunities] = useState<Opportunity[]>(mockOpportunities);
-  const [user, setUser] = useState<UserProfile>(mockUser);
+  const [opportunities, setOpportunities] = useState<Opportunity[]>([]);
+  const [user, setUser] = useState<UserProfile>(initialUserProfile);
   const [selectedOpportunityId, setSelectedOpportunityId] = useState<string>('opp-msft-aiml');
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [filterType, setFilterType] = useState<string>('all');
@@ -114,7 +113,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       }
       setBackendStatus('connected');
 
-      // Fetch live recommendations or opportunities
+      // Fetch live recommendations, opportunities, profile, and applications
       const [oppsData, recsData, profileData, appsData] = await Promise.allSettled([
         api.getOpportunities(),
         api.getRecommendations('profile-alex-morgan'),
@@ -124,62 +123,63 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
       const liveOpps = oppsData.status === 'fulfilled' && oppsData.value.length > 0 ? oppsData.value : [];
       const liveRecs = recsData.status === 'fulfilled' && recsData.value.length > 0 ? recsData.value : [];
-      const mergedIncoming = liveRecs.length > 0 ? liveRecs : liveOpps;
+      const apps = appsData.status === 'fulfilled' && Array.isArray(appsData.value) ? appsData.value : [];
 
-      if (mergedIncoming.length > 0) {
+      const oppsMap = new Map<string, Opportunity>(liveOpps.map((o) => [o.id, o]));
+      const recsMap = new Map<string, Opportunity>(liveRecs.map((r) => [r.id, r]));
+      const allIds = Array.from(new Set([...oppsMap.keys(), ...recsMap.keys()]));
+
+      if (allIds.length > 0) {
         setOpportunities((prev) => {
-          // Merge incoming live data with current state to preserve local user interactions
           const prevMap = new Map(prev.map((o) => [o.id, o]));
-          const updatedList: Opportunity[] = mergedIncoming.map((incoming) => {
-            const existing = prevMap.get(incoming.id);
+
+          return allIds.map((id) => {
+            const base = oppsMap.get(id);
+            const rec = recsMap.get(id);
+            const existing = prevMap.get(id);
+
+            const merged: Opportunity = {
+              ...(base || rec!),
+              ...(rec
+                ? {
+                    matchScore: rec.matchScore,
+                    matchedSkills: rec.matchedSkills,
+                    missingSkills: rec.missingSkills,
+                    whyRecommendedReasons: rec.whyRecommendedReasons,
+                    aiExplanation: rec.aiExplanation,
+                    matchBreakdown: rec.matchBreakdown,
+                  }
+                : {}),
+            };
+
+            const app = apps.find(
+              (a: any) => a.opportunity_id === id || a.opportunityId === id || a.id === id
+            );
+            const appStatus = app
+              ? ((app.status || 'applied').toLowerCase() as ApplicationStage)
+              : (existing?.applicationStatus ?? merged.applicationStatus ?? 'none');
+            const isSaved = app ? true : (existing?.isSaved ?? merged.isSaved ?? false);
+
             return {
-              ...(existing || {}),
-              ...incoming,
-              isSaved: existing?.isSaved ?? incoming.isSaved ?? false,
-              applicationStatus: (existing?.applicationStatus ?? incoming.applicationStatus ?? 'none') as ApplicationStage | 'none',
-              appliedDate: existing?.appliedDate ?? incoming.appliedDate,
+              ...merged,
+              isSaved,
+              applicationStatus: appStatus,
+              applicationId: app?.id || existing?.applicationId,
+              appliedDate:
+                app?.applied_at ||
+                app?.created_at ||
+                existing?.appliedDate ||
+                merged.appliedDate,
             };
           });
-
-          // Also keep any local mock opportunities not in backend yet
-          prev.forEach((p) => {
-            if (!updatedList.some((u) => u.id === p.id)) {
-              updatedList.push(p);
-            }
-          });
-
-          return updatedList;
         });
       }
 
       if (profileData.status === 'fulfilled' && profileData.value) {
         setUser((prev) => normalizeUserProfile(profileData.value, prev));
       }
-
-      if (appsData.status === 'fulfilled' && Array.isArray(appsData.value) && appsData.value.length > 0) {
-        const apps = appsData.value;
-        setOpportunities((prev) =>
-          prev.map((opp) => {
-            const app = apps.find(
-              (a: any) =>
-                a.opportunity_id === opp.id || a.opportunityId === opp.id || a.id === opp.id
-            );
-            if (app) {
-              const status = (app.status || 'applied').toLowerCase() as ApplicationStage;
-              return {
-                ...opp,
-                isSaved: true,
-                applicationStatus: status,
-                applicationId: app.id,
-                appliedDate: app.created_at || app.applied_date || opp.appliedDate,
-              };
-            }
-            return opp;
-          })
-        );
-      }
     } catch (e) {
-      console.warn('Backend sync failed, using mock data:', e);
+      console.warn('Backend sync failed:', e);
       setBackendStatus('disconnected');
     }
   }, []);
@@ -564,17 +564,17 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   };
 
   const stats = useMemo(() => {
-    const totalFound = opportunities.length > 20 ? opportunities.length : 127;
+    const totalFound = opportunities.length;
     const verifiedCount = opportunities.filter((o) => o.verificationStatus === 'verified').length;
-    const strongMatchesCount = opportunities.filter((o) => o.matchScore >= 85).length;
+    const strongMatchesCount = opportunities.filter((o) => o.matchScore >= 80).length;
     const applicationsCount = opportunities.filter((o) => o.applicationStatus && o.applicationStatus !== 'none').length;
     const savedCount = opportunities.filter((o) => o.isSaved).length;
 
     return {
       totalFound,
-      verifiedCount: verifiedCount || 47,
-      strongMatchesCount: strongMatchesCount || 12,
-      applicationsCount: applicationsCount || 5,
+      verifiedCount,
+      strongMatchesCount,
+      applicationsCount,
       savedCount,
     };
   }, [opportunities]);

@@ -20,17 +20,51 @@ export interface APIEnvelope<T> {
   error?: { code: string; message: string } | string | null;
 }
 
+// Clean any malformed unicode characters
+function cleanString(str?: string): string {
+  if (!str) return '';
+  return str
+    .replace(/Â·/g, '·')
+    .replace(/Â/g, '')
+    .replace(/\?1/g, '₹')
+    .replace(/\?1175/g, '₹175')
+    .replace(/\?1170/g, '₹170')
+    .trim();
+}
+
 // Normalizer to convert backend snake_case / dynamic responses to frontend Opportunity schema
 export function normalizeOpportunity(raw: any, existing?: Opportunity): Opportunity {
   if (!raw) return existing as Opportunity;
 
-  const rawStatus = (raw.verification_status || raw.verificationStatus || existing?.verificationStatus || 'VERIFIED').toString().toLowerCase();
+  const rawStatus = (
+    raw.verification_status ||
+    raw.verificationStatus ||
+    existing?.verificationStatus ||
+    'VERIFIED'
+  )
+    .toString()
+    .toLowerCase();
+
   const validStatus: VerificationStatus =
     rawStatus === 'verified' || rawStatus === 'needs_review' || rawStatus === 'suspicious'
       ? rawStatus
       : 'needs_review';
 
-  const rawConfidence = (raw.confidence_tier || raw.verificationConfidence || raw.confidence || 'HIGH').toString().toUpperCase();
+  const rawConfidence = (
+    raw.confidence_tier ||
+    raw.verificationConfidence ||
+    raw.confidence ||
+    (raw.verification_score
+      ? raw.verification_score > 80
+        ? 'HIGH'
+        : raw.verification_score > 50
+        ? 'MEDIUM'
+        : 'LOW'
+      : 'HIGH')
+  )
+    .toString()
+    .toUpperCase();
+
   const validConfidence: VerificationConfidence =
     rawConfidence === 'HIGH' || rawConfidence === 'MEDIUM' || rawConfidence === 'LOW'
       ? rawConfidence
@@ -38,31 +72,43 @@ export function normalizeOpportunity(raw: any, existing?: Opportunity): Opportun
 
   const matchScore =
     typeof raw.match_score === 'number'
-      ? raw.match_score
+      ? Math.round(raw.match_score)
       : typeof raw.matchScore === 'number'
-      ? raw.matchScore
+      ? Math.round(raw.matchScore)
+      : typeof raw.verification_score === 'number'
+      ? Math.round(raw.verification_score)
       : existing?.matchScore ?? 85;
 
-  const rawAppStatus = (raw.application_status || raw.status || raw.applicationStatus || existing?.applicationStatus || 'none').toString().toLowerCase();
+  const rawAppStatus = (
+    raw.application_status ||
+    raw.status ||
+    raw.applicationStatus ||
+    existing?.applicationStatus ||
+    'none'
+  )
+    .toString()
+    .toLowerCase();
+
+  const stipend = raw.salary || raw.stipend || raw.compensation || existing?.stipend || 'Competitive';
 
   return {
     id: String(raw.id || raw.opportunity_id || existing?.id || `opp-${Math.random().toString(36).slice(2, 7)}`),
-    title: raw.title || existing?.title || 'Untitled Opportunity',
-    company: raw.company || existing?.company || 'Organization',
+    title: cleanString(raw.title || existing?.title || 'Untitled Opportunity'),
+    company: cleanString(raw.company || existing?.company || 'Organization'),
     companyLogoColor: raw.company_logo_color || raw.companyLogoColor || existing?.companyLogoColor || 'from-blue-600 to-indigo-600',
     companyInitial:
       raw.company_initial ||
       raw.companyInitial ||
       existing?.companyInitial ||
       (raw.company ? raw.company.slice(0, 2).toUpperCase() : 'PB'),
-    location: raw.location || existing?.location || 'Remote',
+    location: cleanString(raw.location || existing?.location || 'Remote'),
     workMode: raw.work_mode || raw.workMode || existing?.workMode || 'Remote',
     type: raw.opportunity_type || raw.type || existing?.type || 'Internship',
     duration: raw.duration || existing?.duration || '3-6 months',
-    stipend: raw.stipend || raw.compensation || existing?.stipend || 'Competitive',
+    stipend: cleanString(stipend),
     deadline: raw.deadline || existing?.deadline || 'Rolling admission',
-    source: raw.source || existing?.source || 'Verified Portal',
-    sourceUrl: raw.source_url || raw.sourceUrl || raw.url || existing?.sourceUrl || 'https://pathbridge.careers',
+    source: raw.source || raw.company_domain || (raw.company ? `${raw.company} Portal` : 'Verified Portal'),
+    sourceUrl: raw.source_url || raw.sourceUrl || raw.application_url || raw.url || existing?.sourceUrl || 'https://pathbridge.careers',
     matchScore,
     verificationStatus: validStatus,
     verificationConfidence: validConfidence,
@@ -79,44 +125,55 @@ export function normalizeOpportunity(raw: any, existing?: Opportunity): Opportun
       : Array.isArray(raw.missingSkills)
       ? raw.missingSkills
       : existing?.missingSkills || [],
-    skillGapNotes: raw.skill_gap_notes || raw.skillGapNotes || existing?.skillGapNotes,
+    skillGapNotes: cleanString(raw.skill_gap_notes || raw.skillGapNotes || existing?.skillGapNotes),
     matchBreakdown: raw.match_breakdown || existing?.matchBreakdown || {
-      skillsMatch: typeof raw.skills_score === 'number' ? raw.skills_score : matchScore,
+      skillsMatch: typeof raw.skills_score === 'number' ? Math.round(raw.skills_score) : matchScore,
       experienceMatch: Math.max(70, matchScore - 8),
       educationMatch: 95,
       preferenceMatch: 90,
       careerGoalAlignment: Math.min(98, matchScore + 2),
     },
-    aiExplanation:
+    aiExplanation: cleanString(
       raw.ai_explanation ||
       raw.explanation ||
       raw.aiExplanation ||
       existing?.aiExplanation ||
-      'This opportunity aligns with your core background and verified skills.',
+      'This opportunity aligns with your core background and verified skills.'
+    ),
     whyRecommendedReasons: Array.isArray(raw.why_recommended_reasons)
-      ? raw.why_recommended_reasons
+      ? raw.why_recommended_reasons.map((r: string) => cleanString(r))
       : Array.isArray(raw.whyRecommendedReasons)
-      ? raw.whyRecommendedReasons
+      ? raw.whyRecommendedReasons.map((r: string) => cleanString(r))
       : existing?.whyRecommendedReasons || [
           'High technical relevance with your repository projects',
           'Verified corporate recruitment pipeline',
         ],
     verificationChecks: Array.isArray(raw.verification_checks)
-      ? raw.verification_checks
+      ? raw.verification_checks.map((chk: any) => ({
+          ...chk,
+          detail: cleanString(chk.detail),
+          label: cleanString(chk.label),
+        }))
       : Array.isArray(raw.verificationChecks)
       ? raw.verificationChecks
       : existing?.verificationChecks || [],
-    description: raw.description || existing?.description || '',
-    responsibilities: Array.isArray(raw.responsibilities) ? raw.responsibilities : existing?.responsibilities || [],
-    requirements: Array.isArray(raw.requirements) ? raw.requirements : existing?.requirements || [],
-    benefits: Array.isArray(raw.benefits) ? raw.benefits : existing?.benefits || [],
-    postedDaysAgo: typeof raw.posted_days_ago === 'number' ? raw.posted_days_ago : existing?.postedDaysAgo ?? 2,
+    description: cleanString(raw.description || existing?.description || ''),
+    responsibilities: Array.isArray(raw.responsibilities)
+      ? raw.responsibilities.map((r: string) => cleanString(r))
+      : existing?.responsibilities || [],
+    requirements: Array.isArray(raw.requirements)
+      ? raw.requirements.map((r: string) => cleanString(r))
+      : existing?.requirements || [],
+    benefits: Array.isArray(raw.benefits)
+      ? raw.benefits.map((r: string) => cleanString(r))
+      : existing?.benefits || [],
+    postedDaysAgo: typeof raw.posted_days_ago === 'number' ? Math.round(raw.posted_days_ago) : existing?.postedDaysAgo ?? 2,
     isSaved: Boolean(raw.is_saved ?? raw.isSaved ?? existing?.isSaved ?? (rawAppStatus !== 'none')),
     applicationStatus: rawAppStatus as any,
-    applicationId: raw.application_id || raw.applicationId || existing?.applicationId,
-    appliedDate: raw.applied_date || raw.appliedDate || existing?.appliedDate,
+    applicationId: raw.application_id || raw.id || raw.applicationId || existing?.applicationId,
+    appliedDate: raw.applied_date || raw.applied_at || raw.appliedDate || existing?.appliedDate,
     interviewStage: raw.interview_stage || raw.interviewStage || existing?.interviewStage,
-    suspiciousWarning: raw.suspicious_warning || raw.suspiciousWarning || existing?.suspiciousWarning,
+    suspiciousWarning: cleanString(raw.suspicious_warning || raw.suspiciousWarning || existing?.suspiciousWarning),
   };
 }
 
@@ -125,9 +182,9 @@ export function normalizeUserProfile(raw: any, existing?: UserProfile): UserProf
   if (!raw) return existing as UserProfile;
 
   let skills = existing?.skills || {
-    core: ['Python', 'SQL', 'Machine Learning'],
-    backend: ['FastAPI', 'React', 'REST APIs'],
-    cloudAndTools: ['Docker', 'Git', 'AWS'],
+    core: ['Python', 'SQL', 'Machine Learning', 'PyTorch'],
+    backend: ['React', 'Next.js', 'FastAPI', 'Go', 'REST APIs'],
+    cloudAndTools: ['AWS', 'Docker', 'Git', 'Linux', 'PostgreSQL'],
   };
 
   if (raw.skills) {
@@ -152,29 +209,44 @@ export function normalizeUserProfile(raw: any, existing?: UserProfile): UserProf
 
   return {
     id: raw.id || raw.profile_id || existing?.id || 'profile-alex-morgan',
-    name: raw.name || existing?.name || 'Alex Morgan',
+    name: cleanString(raw.name || existing?.name || 'Alex Morgan'),
     email: raw.email || existing?.email || 'alex.morgan@university.edu',
     avatarUrl: raw.avatar_url || raw.avatarUrl || existing?.avatarUrl || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=250',
-    degree: raw.degree || existing?.degree || 'B.Tech — AI & Data Science',
-    university: raw.university || existing?.university || 'National Institute of Technology',
-    batch: raw.batch || existing?.batch || 'Batch of 2027 (Penultimate Year)',
+    degree: cleanString(raw.degree || existing?.degree || 'B.Tech in Artificial Intelligence & Data Science'),
+    university: cleanString(raw.university || existing?.university || 'National Institute of Technology'),
+    batch: cleanString(raw.batch || existing?.batch || '2023-2027 (Penultimate Year)'),
     gpa: raw.gpa || existing?.gpa || '3.82 / 4.00',
-    profileStrength: raw.profile_strength ?? raw.profileStrength ?? existing?.profileStrength ?? 85,
+    profileStrength: typeof raw.profile_strength === 'number' ? Math.round(raw.profile_strength) : (existing?.profileStrength ?? 85),
     careerInterests: Array.isArray(raw.career_interests)
       ? raw.career_interests
       : Array.isArray(raw.careerInterests)
       ? raw.careerInterests
-      : existing?.careerInterests || ['AI / Machine Learning', 'Data Engineering'],
+      : existing?.careerInterests || ['AI / Machine Learning', 'Data Engineering', 'Cloud Systems'],
     skills,
-    experience: Array.isArray(raw.experience) ? raw.experience : existing?.experience || [],
-    projects: Array.isArray(raw.projects) ? raw.projects : existing?.projects || [],
-    preferences: raw.preferences || existing?.preferences || {
-      opportunityType: ['Internship'],
-      workModes: ['Remote', 'Hybrid', 'On-site'],
-      targetRoles: ['AI/ML Intern', 'Data Engineering Intern'],
-      preferredLocations: ['Hyderabad', 'Bengaluru', 'Remote'],
-      targetCompensation: '₹50,000+/mo',
-      earliestStartDate: 'Summer 2026',
+    experience: Array.isArray(raw.experience)
+      ? raw.experience.map((e: any) => ({
+          ...e,
+          role: cleanString(e.role),
+          organization: cleanString(e.organization),
+          period: cleanString(e.period),
+          description: cleanString(e.description),
+        }))
+      : existing?.experience || [],
+    projects: Array.isArray(raw.projects)
+      ? raw.projects.map((p: any) => ({
+          ...p,
+          title: cleanString(p.title),
+          description: cleanString(p.description),
+          impact: cleanString(p.impact),
+        }))
+      : existing?.projects || [],
+    preferences: {
+      opportunityType: raw.preferred_opportunity_types || raw.preferences?.opportunityType || ['Internship'],
+      workModes: raw.preferred_work_modes || raw.preferences?.workModes || ['Remote', 'Hybrid', 'On-site'],
+      targetRoles: raw.career_interests || raw.preferences?.targetRoles || ['AI/ML Intern', 'Data Engineering Intern'],
+      preferredLocations: raw.preferred_locations || raw.preferences?.preferredLocations || ['Hyderabad', 'Bengaluru', 'Remote'],
+      targetCompensation: raw.target_compensation || raw.preferences?.targetCompensation || '₹50,000+/mo',
+      earliestStartDate: raw.earliest_start_date || raw.preferences?.earliestStartDate || 'Summer 2026',
     },
   };
 }
@@ -200,7 +272,7 @@ export const api = {
         return true;
       }
 
-      // Fallback check: try docs or opportunities
+      // Fallback check: try opportunities endpoint
       const optController = new AbortController();
       const optTimeoutId = setTimeout(() => optController.abort(), 2000);
       const optRes = await fetch(`${API_BASE_URL}/opportunities`, {
@@ -236,7 +308,7 @@ export const api = {
       const rawList = Array.isArray(json.data) ? json.data : Array.isArray(json) ? json : [];
       return rawList.map((item) => normalizeOpportunity(item));
     } catch (e) {
-      console.warn('Backend getOpportunities error, using local fallback:', e);
+      console.warn('Backend getOpportunities error:', e);
       return [];
     }
   },
@@ -312,11 +384,16 @@ export const api = {
     try {
       const res = await fetch(`${API_BASE_URL}/recommendations/${encodeURIComponent(profileId)}`);
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const json: APIEnvelope<any[]> = await res.json();
-      const rawList = Array.isArray(json.data) ? json.data : Array.isArray(json) ? json : [];
-      return rawList.map((item) => normalizeOpportunity(item));
+      const json: APIEnvelope<any> = await res.json();
+      const data = json.data || json;
+      const rawList = Array.isArray(data)
+        ? data
+        : Array.isArray((data as any)?.recommendations)
+        ? (data as any).recommendations
+        : [];
+      return rawList.map((item: any) => normalizeOpportunity(item));
     } catch (e) {
-      console.warn('Backend getRecommendations note (using fallback):', e);
+      console.warn('Backend getRecommendations error:', e);
       return [];
     }
   },
@@ -332,11 +409,11 @@ export const api = {
       const json: APIEnvelope<any> = await res.json();
       const d = json.data || json;
       return {
-        matchScore: d.match_score ?? d.matchScore ?? 85,
-        skillsScore: d.skills_score ?? d.skillsScore,
+        matchScore: typeof d.match_score === 'number' ? Math.round(d.match_score) : 85,
+        skillsScore: typeof d.skills_score === 'number' ? Math.round(d.skills_score) : undefined,
         matchedSkills: d.matched_skills || d.matchedSkills || [],
         skillGaps: d.skill_gaps || d.missing_skills || d.skillGaps || [],
-        explanation: d.explanation || d.ai_explanation || '',
+        explanation: cleanString(d.explanation || d.ai_explanation || ''),
       };
     } catch {
       return null;
@@ -365,13 +442,32 @@ export const api = {
           ? rawStatus
           : 'needs_review';
 
+      // Parse signals object into clean string array
+      let trustSignals: string[] = [];
+      if (Array.isArray(d.trust_signals)) {
+        trustSignals = d.trust_signals;
+      } else if (d.signals && typeof d.signals === 'object') {
+        const labelMap: Record<string, string> = {
+          company_information: 'Company information verified',
+          official_domain: 'Official corporate domain validated',
+          application_url: 'Direct secure application URL',
+          complete_description: 'Comprehensive job description & roles',
+          deadline_detected: 'Realistic recruitment timeline verified',
+          no_suspicious_payment: 'No upfront fees or deposit detected',
+          domain_consistency: 'Domain and corporate registry consistent',
+        };
+        trustSignals = Object.entries(d.signals)
+          .filter(([_, val]) => Boolean(val))
+          .map(([key]) => labelMap[key] || key.replace(/_/g, ' '));
+      }
+
       return {
         verificationStatus,
-        confidenceScore: d.confidence_score ?? d.confidenceScore ?? 85,
-        trustSignals: d.trust_signals || d.trustSignals || [],
-        riskFactors: d.risk_factors || d.riskFactors || [],
+        confidenceScore: typeof d.confidence === 'number' ? d.confidence : (d.confidence_score ?? 85),
+        trustSignals,
+        riskFactors: Array.isArray(d.risk_factors) ? d.risk_factors.map((r: string) => cleanString(r)) : [],
         checks: d.checks || d.verification_checks || [],
-        summary: d.summary || d.explanation || '',
+        summary: cleanString(d.explanation || d.summary || ''),
       };
     } catch {
       return null;

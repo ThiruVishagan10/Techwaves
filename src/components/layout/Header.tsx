@@ -33,7 +33,9 @@ export const Header: React.FC = () => {
       case 'discover':
         return 'Discover Opportunities';
       case 'opportunity-details':
-        return `Opportunity Details / ${selectedOpportunity.company} — ${selectedOpportunity.title}`;
+        return selectedOpportunity
+          ? `Opportunity Details / ${selectedOpportunity.company} — ${selectedOpportunity.title}`
+          : 'Opportunity Details';
       case 'verification':
         return 'Trust & Verification Center';
       case 'recommendations':
