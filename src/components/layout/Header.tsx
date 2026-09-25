@@ -149,34 +149,7 @@ export const Header: React.FC = () => {
           />
         </div>
 
-        {/* Live Backend Connection Status */}
-        {backendStatus === 'connected' && (
-          <button
-            onClick={() => checkBackendConnection()}
-            title={`FastAPI Backend Live at ${api.rootUrl} — Click to re-sync`}
-            className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/30 text-[11px] font-medium text-emerald-400 transition-colors shadow-sm"
-          >
-            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse flex-shrink-0" />
-            <span className="hidden sm:inline max-w-[200px] lg:max-w-xs truncate">{api.rootUrl}</span>
-          </button>
-        )}
-        {backendStatus === 'checking' && (
-          <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-blue-500/10 border border-blue-500/30 text-[11px] font-medium text-blue-400">
-            <span className="w-2 h-2 rounded-full bg-blue-400 animate-ping flex-shrink-0" />
-            <span className="hidden sm:inline max-w-[180px] truncate">Connecting to {api.rootUrl}...</span>
-          </div>
-        )}
-        {backendStatus === 'disconnected' && (
-          <button
-            onClick={() => checkBackendConnection()}
-            title={`Backend offline (${api.rootUrl}). Click to retry connection`}
-            className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 text-[11px] font-medium text-amber-400 transition-colors"
-          >
-            <span className="w-2 h-2 rounded-full bg-amber-400 flex-shrink-0" />
-            <span className="hidden sm:inline max-w-[160px] truncate">{api.rootUrl}</span>
-            <span className="text-[10px] underline ml-0.5">Offline (Retry)</span>
-          </button>
-        )}
+// Backend status UI removed
 
         {/* Judge Demo Flows Dropdown */}
         <div className="relative">
