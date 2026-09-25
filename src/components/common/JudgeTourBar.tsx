@@ -10,6 +10,7 @@ import {
   ShieldCheck,
 } from 'lucide-react';
 import { useApp } from '@/context/AppContext';
+import { api } from '@/services/api';
 
 export const JudgeTourBar: React.FC = () => {
   const {
@@ -121,22 +122,22 @@ export const JudgeTourBar: React.FC = () => {
               <div className="flex items-center gap-1.5">
                 {backendStatus === 'connected' ? (
                   <span className="flex items-center gap-1 text-emerald-400 font-medium">
-                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                    FastAPI Live (:8000)
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse flex-shrink-0" />
+                    <span className="truncate max-w-[150px]">{api.rootUrl}</span>
                   </span>
                 ) : backendStatus === 'checking' ? (
                   <span className="flex items-center gap-1 text-blue-400 font-medium">
-                    <span className="w-1.5 h-1.5 rounded-full bg-blue-400 animate-ping" />
+                    <span className="w-1.5 h-1.5 rounded-full bg-blue-400 animate-ping flex-shrink-0" />
                     Connecting API...
                   </span>
                 ) : (
                   <button
                     onClick={() => checkBackendConnection()}
                     className="flex items-center gap-1 text-amber-400 hover:underline"
-                    title="Backend not responding on http://localhost:8000. Click to retry."
+                    title={`Backend not responding on ${api.rootUrl}. Click to retry.`}
                   >
-                    <span className="w-1.5 h-1.5 rounded-full bg-amber-400" />
-                    Demo Mode (Offline)
+                    <span className="w-1.5 h-1.5 rounded-full bg-amber-400 flex-shrink-0" />
+                    <span className="truncate max-w-[120px]">Offline ({api.rootUrl})</span>
                   </button>
                 )}
               </div>

@@ -119,61 +119,6 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     }, 4500);
   }, []);
 
-  // Restore authenticated session from localStorage
-  useEffect(() => {
-    async function restoreSession() {
-      try {
-        if (typeof window === 'undefined') return;
-        const savedToken = localStorage.getItem('pathbridge_token');
-        if (!savedToken) {
-          setIsAuthLoading(false);
-          return;
-        }
-
-        // If it's a simulated demo token, restore demo user
-        if (savedToken.startsWith('demo-token-')) {
-          const role = savedToken.includes('recruiter') ? 'recruiter' : 'student';
-          const demoUser: AuthUser = {
-            id: role === 'student' ? 'demo-user-student' : 'demo-user-recruiter',
-            email: role === 'student' ? 'alex.morgan@university.edu' : 'recruiter.sarah@techcorp.io',
-            fullName: role === 'student' ? 'Alex Morgan' : 'Sarah Jenkins',
-            role,
-            avatarUrl:
-              role === 'student'
-                ? 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=250'
-                : 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&q=80&w=250',
-            isActive: true,
-          };
-          setToken(savedToken);
-          setCurrentUser(demoUser);
-          setIsAuthLoading(false);
-          return;
-        }
-
-        // Check against live FastAPI backend
-        const userObj = await api.getMe(savedToken);
-        if (userObj) {
-          setToken(savedToken);
-          setCurrentUser(userObj);
-          setUser((prev) => ({
-            ...prev,
-            name: userObj.fullName || prev.name,
-            email: userObj.email || prev.email,
-            avatarUrl: userObj.avatarUrl || prev.avatarUrl,
-          }));
-        } else {
-          localStorage.removeItem('pathbridge_token');
-        }
-      } catch (err) {
-        console.warn('Session restoration failed:', err);
-      } finally {
-        setIsAuthLoading(false);
-      }
-    }
-
-    restoreSession();
-  }, []);
-
   // Sync with live PathBridge FastAPI Backend
   const refreshDataFromBackend = useCallback(async () => {
     try {
@@ -255,16 +200,93 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
+  // Restore authenticated session from localStorage
+  useEffect(() => {
+    async function restoreSession() {
+      try {
+        if (typeof window === 'undefined') return;
+        let savedToken = localStorage.getItem('pathbridge_token');
+        const hasExplicitlyLoggedOut = localStorage.getItem('pathbridge_logged_out') === 'true';
+
+        // If no token exists and user hasn't explicitly logged out, auto-authenticate with demo account
+        if (!savedToken && !hasExplicitlyLoggedOut) {
+          const res = await api.login({ email: 'alex.morgan@university.edu', password: 'Password123!' });
+          if (res.success && res.data) {
+            savedToken = res.data.accessToken;
+            localStorage.setItem('pathbridge_token', savedToken);
+            setToken(savedToken);
+            setCurrentUser(res.data.user);
+            setUser((prev) => ({
+              ...prev,
+              name: res.data!.user.fullName || prev.name,
+              email: res.data!.user.email || prev.email,
+              avatarUrl: res.data!.user.avatarUrl || prev.avatarUrl,
+            }));
+            setIsAuthLoading(false);
+            await refreshDataFromBackend();
+            return;
+          }
+        }
+
+        if (!savedToken) {
+          setIsAuthLoading(false);
+          return;
+        }
+
+        // If it's a simulated demo token, restore demo user
+        if (savedToken.startsWith('demo-token-')) {
+          const role = savedToken.includes('recruiter') ? 'recruiter' : 'student';
+          const demoUser: AuthUser = {
+            id: role === 'student' ? 'demo-user-student' : 'demo-user-recruiter',
+            email: role === 'student' ? 'alex.morgan@university.edu' : 'recruiter.sarah@techcorp.io',
+            fullName: role === 'student' ? 'Alex Morgan' : 'Sarah Jenkins',
+            role,
+            avatarUrl:
+              role === 'student'
+                ? 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=250'
+                : 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&q=80&w=250',
+            isActive: true,
+          };
+          setToken(savedToken);
+          setCurrentUser(demoUser);
+          setIsAuthLoading(false);
+          return;
+        }
+
+        // Check against live FastAPI backend
+        const userObj = await api.getMe(savedToken);
+        if (userObj) {
+          setToken(savedToken);
+          setCurrentUser(userObj);
+          setUser((prev) => ({
+            ...prev,
+            name: userObj.fullName || prev.name,
+            email: userObj.email || prev.email,
+            avatarUrl: userObj.avatarUrl || prev.avatarUrl,
+          }));
+        } else {
+          localStorage.removeItem('pathbridge_token');
+        }
+      } catch (err) {
+        console.warn('Session restoration failed:', err);
+      } finally {
+        setIsAuthLoading(false);
+      }
+    }
+
+    restoreSession();
+  }, [refreshDataFromBackend]);
+
   const checkBackendConnection = useCallback(async () => {
     setBackendStatus('checking');
     const isHealthy = await api.checkHealth();
     if (isHealthy) {
       setBackendStatus('connected');
-      showToast('Connected to live FastAPI backend at http://localhost:8000');
+      showToast(`Connected to live FastAPI backend at ${api.rootUrl}`);
       await refreshDataFromBackend();
     } else {
       setBackendStatus('disconnected');
-      showToast('Backend offline (http://localhost:8000). Running in demo mode with rich simulated data.');
+      showToast(`Backend offline (${api.rootUrl}). Running in demo mode with rich simulated data.`);
     }
   }, [refreshDataFromBackend, showToast]);
 
@@ -614,6 +636,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         setCurrentUser(authUser);
         if (typeof window !== 'undefined') {
           localStorage.setItem('pathbridge_token', accessToken);
+          localStorage.removeItem('pathbridge_logged_out');
         }
         setUser((prev) => ({
           ...prev,
@@ -643,6 +666,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         setCurrentUser(authUser);
         if (typeof window !== 'undefined') {
           localStorage.setItem('pathbridge_token', accessToken);
+          localStorage.removeItem('pathbridge_logged_out');
         }
         setUser((prev) => ({
           ...prev,
@@ -672,6 +696,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       setCurrentUser(null);
       if (typeof window !== 'undefined') {
         localStorage.removeItem('pathbridge_token');
+        localStorage.setItem('pathbridge_logged_out', 'true');
       }
       showToast('You have been signed out.');
       navigateTo('landing');
@@ -680,6 +705,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   const demoLogin = async (role: 'student' | 'recruiter') => {
     setIsAuthLoading(true);
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem('pathbridge_logged_out');
+    }
     const credentials =
       role === 'student'
         ? {

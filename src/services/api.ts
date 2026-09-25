@@ -34,6 +34,21 @@ function cleanString(str?: string): string {
     .trim();
 }
 
+// Get authorization headers from stored token
+function getAuthHeaders(includeJson: boolean = false): Record<string, string> {
+  const headers: Record<string, string> = {};
+  if (includeJson) {
+    headers['Content-Type'] = 'application/json';
+  }
+  if (typeof window !== 'undefined') {
+    const token = localStorage.getItem('pathbridge_token');
+    if (token && !token.startsWith('demo-token-')) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+  }
+  return headers;
+}
+
 // Normalizer to convert backend snake_case / dynamic responses to frontend Opportunity schema
 export function normalizeOpportunity(raw: any, existing?: Opportunity): Opportunity {
   if (!raw) return existing as Opportunity;
@@ -261,7 +276,7 @@ export const api = {
   async checkHealth(): Promise<boolean> {
     try {
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 2500);
+      const timeoutId = setTimeout(() => controller.abort(), 6000);
 
       // Check /health endpoint
       const res = await fetch(`${ROOT_URL}/health`, {
@@ -276,13 +291,14 @@ export const api = {
 
       // Fallback check: try opportunities endpoint
       const optController = new AbortController();
-      const optTimeoutId = setTimeout(() => optController.abort(), 2000);
+      const optTimeoutId = setTimeout(() => optController.abort(), 4000);
       const optRes = await fetch(`${API_BASE_URL}/opportunities`, {
         signal: optController.signal,
+        headers: getAuthHeaders(),
       }).catch(() => null);
       clearTimeout(optTimeoutId);
 
-      return Boolean(optRes && (optRes.ok || optRes.status === 200));
+      return Boolean(optRes && (optRes.ok || optRes.status === 200 || optRes.status === 401));
     } catch {
       return false;
     }
@@ -304,20 +320,25 @@ export const api = {
         });
       }
       const query = searchParams.toString() ? `?${searchParams.toString()}` : '';
-      const res = await fetch(`${API_BASE_URL}/opportunities${query}`);
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const res = await fetch(`${API_BASE_URL}/opportunities${query}`, {
+        headers: getAuthHeaders(),
+      });
+      if (res.status === 401 || !res.ok) {
+        return [];
+      }
       const json: APIEnvelope<any[]> = await res.json();
       const rawList = Array.isArray(json.data) ? json.data : Array.isArray(json) ? json : [];
       return rawList.map((item) => normalizeOpportunity(item));
-    } catch (e) {
-      console.warn('Backend getOpportunities error:', e);
+    } catch {
       return [];
     }
   },
 
   async getOpportunity(id: string): Promise<Opportunity | null> {
     try {
-      const res = await fetch(`${API_BASE_URL}/opportunities/${encodeURIComponent(id)}`);
+      const res = await fetch(`${API_BASE_URL}/opportunities/${encodeURIComponent(id)}`, {
+        headers: getAuthHeaders(),
+      });
       if (!res.ok) return null;
       const json: APIEnvelope<any> = await res.json();
       const raw = json.data || json;
@@ -330,7 +351,9 @@ export const api = {
   // 3. Profiles & Resume Analysis
   async getProfile(profileId: string = 'profile-alex-morgan'): Promise<UserProfile | null> {
     try {
-      const res = await fetch(`${API_BASE_URL}/profiles/${encodeURIComponent(profileId)}`);
+      const res = await fetch(`${API_BASE_URL}/profiles/${encodeURIComponent(profileId)}`, {
+        headers: getAuthHeaders(),
+      });
       if (!res.ok) return null;
       const json: APIEnvelope<any> = await res.json();
       return normalizeUserProfile(json.data || json);
@@ -343,7 +366,7 @@ export const api = {
     try {
       const res = await fetch(`${API_BASE_URL}/profiles`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: getAuthHeaders(true),
         body: JSON.stringify(profile),
       });
       if (!res.ok) return null;
@@ -384,8 +407,12 @@ export const api = {
   // 4. AI Recommendations & Match Breakdown
   async getRecommendations(profileId: string = 'profile-alex-morgan'): Promise<Opportunity[]> {
     try {
-      const res = await fetch(`${API_BASE_URL}/recommendations/${encodeURIComponent(profileId)}`);
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const res = await fetch(`${API_BASE_URL}/recommendations/${encodeURIComponent(profileId)}`, {
+        headers: getAuthHeaders(),
+      });
+      if (res.status === 401 || !res.ok) {
+        return [];
+      }
       const json: APIEnvelope<any> = await res.json();
       const data = json.data || json;
       const rawList = Array.isArray(data)
@@ -394,8 +421,7 @@ export const api = {
         ? (data as any).recommendations
         : [];
       return rawList.map((item: any) => normalizeOpportunity(item));
-    } catch (e) {
-      console.warn('Backend getRecommendations error:', e);
+    } catch {
       return [];
     }
   },
@@ -404,7 +430,7 @@ export const api = {
     try {
       const res = await fetch(`${API_BASE_URL}/recommendations/match`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: getAuthHeaders(true),
         body: JSON.stringify({ profile_id: profileId, opportunity_id: opportunityId }),
       });
       if (!res.ok) return null;
@@ -432,7 +458,7 @@ export const api = {
     try {
       const res = await fetch(`${API_BASE_URL}/verification/analyze`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: getAuthHeaders(true),
         body: JSON.stringify(params),
       });
       if (!res.ok) return null;
@@ -479,7 +505,9 @@ export const api = {
   // 6. Application Tracker Pipeline
   async getApplications(profileId: string = 'profile-alex-morgan'): Promise<any[]> {
     try {
-      const res = await fetch(`${API_BASE_URL}/applications/${encodeURIComponent(profileId)}`);
+      const res = await fetch(`${API_BASE_URL}/applications/${encodeURIComponent(profileId)}`, {
+        headers: getAuthHeaders(),
+      });
       if (!res.ok) return [];
       const json: APIEnvelope<any[]> = await res.json();
       return Array.isArray(json.data) ? json.data : Array.isArray(json) ? json : [];
@@ -497,7 +525,7 @@ export const api = {
     try {
       const res = await fetch(`${API_BASE_URL}/applications`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: getAuthHeaders(true),
         body: JSON.stringify({
           profile_id: profileId,
           opportunity_id: opportunityId,
@@ -517,7 +545,7 @@ export const api = {
     try {
       const res = await fetch(`${API_BASE_URL}/applications/${encodeURIComponent(applicationId)}`, {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
+        headers: getAuthHeaders(true),
         body: JSON.stringify({
           status: status.toUpperCase(),
           notes,
@@ -535,6 +563,7 @@ export const api = {
     try {
       const res = await fetch(`${API_BASE_URL}/applications/${encodeURIComponent(applicationId)}`, {
         method: 'DELETE',
+        headers: getAuthHeaders(),
       });
       return res.ok;
     } catch {
